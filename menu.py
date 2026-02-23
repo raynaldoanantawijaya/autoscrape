@@ -422,46 +422,88 @@ def technique_ssr_parser(url: str) -> dict | None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _scrape_single_url(name: str, url: str):
-    """Scrape satu URL menggunakan teknik auto-detect (Direct Request → DOM Extraction)."""
+    """Scrape satu URL menggunakan AUTO-DETECT penuh (SSR → Direct → Capture → DOM)."""
     info(f"Scraping [{name}]: {Fore.CYAN}{url}{Style.RESET_ALL}")
     timestamp = int(time.time())
+    result = None
+    used_technique = ""
 
-    # ── Langkah 1: Direct Request (cepat, tanpa browser) ──
-    info(f"  → Teknik ①: Direct Request + BeautifulSoup...")
-    data = technique_direct_request(url, category="general")
-
-    tables = data.get("tables", []) if data else []
-    inline = data.get("inline_json", []) if data else []
-    links = data.get("links", []) if data else []
-
-    if tables:
-        ok(f"  {len(tables)} tabel ditemukan via Direct Request")
-        result = {"technique": "direct_request", "tables": tables,
-                  "inline_json": inline, "links": links[:50]}
+    # ── Langkah 1: SSR Parser — Next.js / Nuxt (paling cepat, tanpa browser) ──
+    info(f"  → Teknik ①: SSR Parser (Next.js / Nuxt)...")
+    ssr = technique_ssr_parser(url)
+    if ssr:
+        ok(f"  SSR data ditemukan! (__NEXT_DATA__ / __NUXT__)")
+        result = {"technique": "ssr_parser", "ssr_data": ssr}
+        used_technique = "SSR Parser"
     else:
-        # ── Langkah 2: DOM Extraction (browser) ──
-        warn(f"  Direct Request kurang data, mencoba DOM Extraction (browser)...")
-        dom_data = technique_dom_extraction(url)
-        if dom_data and (dom_data.get("tables") or dom_data.get("articles")):
-            ok(f"  {len(dom_data.get('tables',[]))} tabel + {len(dom_data.get('articles',[]))} item via DOM Extraction")
-            result = {"technique": "dom_extraction", **dom_data}
-        else:
-            err(f"  Tidak ada data yang ditemukan dari {url}")
-            return
+        # ── Langkah 2: Direct Request + BeautifulSoup (cepat, tanpa browser) ──
+        info(f"  → Teknik ②: Direct Request + BeautifulSoup...")
+        data = technique_direct_request(url, category="general")
+        tables = data.get("tables", []) if data else []
+        inline = data.get("inline_json", []) if data else []
 
-    # Simpan
+        if tables:
+            ok(f"  {len(tables)} tabel ditemukan via Direct Request")
+            result = {"technique": "direct_request", "tables": tables,
+                      "inline_json": inline}
+            used_technique = "Direct Request"
+        else:
+            # ── Langkah 3: Network Capture (browser, intercept XHR/API JSON) ──
+            warn(f"  Direct Request kurang data, mencoba Network Capture (browser)...")
+            info(f"  → Teknik ③: Network Capture (Intercept XHR/API)...")
+            nc_data = technique_network_capture(url)
+            captured = nc_data.get("captured_apis", {}) if nc_data else {}
+            next_data = nc_data.get("__NEXT_DATA__") if nc_data else None
+            nuxt_data = nc_data.get("__NUXT__") if nc_data else None
+
+            if captured or next_data or nuxt_data:
+                api_count = len(captured)
+                ok(f"  {api_count} API endpoint tertangkap via Network Capture")
+                result = {"technique": "network_capture",
+                          "captured_apis": captured, "api_count": api_count}
+                if next_data:
+                    result["__NEXT_DATA__"] = next_data
+                if nuxt_data:
+                    result["__NUXT__"] = nuxt_data
+                used_technique = "Network Capture"
+            else:
+                # ── Langkah 4: DOM Extraction (browser, konten visible di halaman) ──
+                warn(f"  Network Capture tidak menangkap API, mencoba DOM Extraction...")
+                info(f"  → Teknik ④: DOM Extraction (visible page content)...")
+                dom_data = technique_dom_extraction(
+                    url,
+                    selectors=["table", '[class*="price"]', '[class*="harga"]',
+                               '[class*="card"]', '[class*="product"]', 'article']
+                )
+                if dom_data and (dom_data.get("tables") or dom_data.get("articles")):
+                    t = len(dom_data.get("tables", []))
+                    a = len(dom_data.get("articles", []))
+                    ok(f"  {t} tabel + {a} item via DOM Extraction")
+                    result = {"technique": "dom_extraction", **dom_data}
+                    used_technique = "DOM Extraction"
+
+    if not result:
+        err(f"  Tidak ada data yang ditemukan dari {url} (semua 4 teknik gagal)")
+        return
+
+    # ── Simpan ──
     domain_slug = _domain(url).replace(".", "_")
     out_path = os.path.join(OUTPUT_DIR, f"{domain_slug}_{timestamp}.json")
     out = {
-        "metadata": {"url": url, "source": name, "scrape_date": datetime.now().isoformat()},
+        "metadata": {"url": url, "source": name,
+                      "technique_used": used_technique,
+                      "scrape_date": datetime.now().isoformat()},
         "data": result
     }
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
 
-    show_result(f"{name} BERHASIL DI-SCRAPE", os.path.abspath(out_path), 1)
+    size = round(os.path.getsize(out_path) / 1024, 1)
+    show_result(f"{name} BERHASIL DI-SCRAPE ({used_technique})",
+                os.path.abspath(out_path), 1)
+    info(f"Ukuran file: {size} KB")
 
-    # Preview
+    # ── Preview ──
     head("Preview Data:")
     tbls = result.get("tables", [])
     if tbls:
@@ -473,10 +515,26 @@ def _scrape_single_url(name: str, url: str):
                 else:
                     vals = " | ".join(str(c) for c in row[:4])
                 print(f"    {Fore.CYAN}→{Style.RESET_ALL} {vals}")
+
+    apis = result.get("captured_apis", {})
+    if apis:
+        info(f"  API endpoint yang tertangkap:")
+        for api_url in list(apis.keys())[:5]:
+            short = api_url[:80] + ("..." if len(api_url) > 80 else "")
+            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {short}")
+
+    ssr_d = result.get("ssr_data")
+    if ssr_d and isinstance(ssr_d, dict):
+        keys = list(ssr_d.get("props", {}).get("pageProps", {}).keys())[:5]
+        if keys:
+            info(f"  SSR pageProps keys: {', '.join(keys)}")
+
     arts = result.get("articles", [])
     if arts:
         for a in arts[:5]:
-            print(f"    {Fore.CYAN}→{Style.RESET_ALL} {a.get('judul','')[:70]}")
+            judul = a.get("judul", "")[:70]
+            if judul:
+                print(f"    {Fore.CYAN}→{Style.RESET_ALL} {judul}")
 
 
 def run_scrape_emas():
