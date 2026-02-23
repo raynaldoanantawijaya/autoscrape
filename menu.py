@@ -991,6 +991,112 @@ def run_api_server():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# SCRAPE DRAKORKITA (DRAMA / FILM)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_scrape_drakorkita():
+    """Scrape drama/film dari DrakorKita."""
+    print_header("🎬 SCRAPE DRAKORKITA (DRAMA / FILM)")
+
+    print(f"""  {Fore.CYAN}Menu Scraping DrakorKita:{Style.RESET_ALL}
+
+    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — Scrape 1 judul drama/film (masukkan URL detail)
+    {Fore.YELLOW}2{Style.RESET_ALL}. Full Scrape — Crawl & scrape semua judul (bisa dibatasi)
+    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Series — Hanya series (ongoing/complete)
+    {Fore.YELLOW}4{Style.RESET_ALL}. Filter Movie — Hanya film/movie
+    {Fore.YELLOW}5{Style.RESET_ALL}. Filter Genre — Pilih genre tertentu
+    {Fore.YELLOW}0{Style.RESET_ALL}. Kembali
+""")
+
+    choice = ask("Pilihan (0-5)", "1")
+
+    try:
+        from scrape_drakorkita import quick_scrape, run_full_scrape
+    except ImportError as e:
+        err(f"Gagal import scrape_drakorkita: {e}")
+        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+        return
+
+    if choice == "0":
+        return
+
+    elif choice == "1":
+        url = ask("URL drama/film (contoh: https://drakorkita3.nicewap.sbs/detail/positively-yours-2026-eot/)")
+        if not url:
+            err("URL kosong!")
+            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+            return
+        with_eps = ask("Scrape video embed per episode? (y/n)", "n").lower() == "y"
+        print()
+        result = quick_scrape(url, with_episodes=with_eps)
+        if result:
+            ok(f"Judul: {result.get('title', '?')}")
+            ok(f"Episode: {result.get('total_episodes', 0)}")
+            ok(f"Genre: {', '.join(result.get('genres', []))}")
+            ok(f"Cast: {', '.join(result.get('cast', [])[:5])}")
+            if result.get("sinopsis"):
+                head("Sinopsis:")
+                print(f"    {result['sinopsis'][:200]}...")
+
+    elif choice == "2":
+        max_pages = ask("Max halaman listing (kosong = semua, ~400 halaman)", "")
+        max_details = ask("Max judul yang di-detail (kosong = semua)", "")
+        with_eps = ask("Scrape video embed per episode? Lebih lambat. (y/n)", "n").lower() == "y"
+        print()
+        run_full_scrape(
+            max_pages=int(max_pages) if max_pages else None,
+            max_details=int(max_details) if max_details else None,
+            scrape_episodes=with_eps,
+        )
+
+    elif choice == "3":
+        status = ask("Status (1=Ongoing, 2=Complete)", "1")
+        s = "returning series" if status == "1" else "ended"
+        max_pages = ask("Max halaman (kosong = semua)", "5")
+        max_details = ask("Max judul di-detail (kosong = semua)", "")
+        print()
+        run_full_scrape(
+            max_pages=int(max_pages) if max_pages else None,
+            max_details=int(max_details) if max_details else None,
+            filter_params={"status": s},
+        )
+
+    elif choice == "4":
+        max_pages = ask("Max halaman (kosong = semua)", "5")
+        max_details = ask("Max judul di-detail (kosong = semua)", "")
+        print()
+        run_full_scrape(
+            max_pages=int(max_pages) if max_pages else None,
+            max_details=int(max_details) if max_details else None,
+            filter_params={"media_type": "movie"},
+        )
+
+    elif choice == "5":
+        genres = ["Action", "Adventure", "Comedy", "Crime", "Drama", "Family",
+                  "Fantasy", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller"]
+        print(f"\n  {Fore.CYAN}Genre tersedia:{Style.RESET_ALL}")
+        for i, g in enumerate(genres, 1):
+            print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. {g}")
+        g_choice = ask(f"Pilih genre (1-{len(genres)})", "1")
+        try:
+            genre = genres[int(g_choice) - 1]
+        except (ValueError, IndexError):
+            err("Pilihan tidak valid.")
+            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+            return
+        max_pages = ask("Max halaman (kosong = semua)", "5")
+        max_details = ask("Max judul di-detail (kosong = semua)", "")
+        print()
+        run_full_scrape(
+            max_pages=int(max_pages) if max_pages else None,
+            max_details=int(max_details) if max_details else None,
+            filter_params={"genre": genre},
+        )
+
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1231,6 +1337,7 @@ MENU_OPTIONS = {
     "6": ("⚡  SCRAPE ALL (Semua Data)", run_scrape_all),
     "7": ("🚀  Jalankan API Server",      run_api_server),
     "8": ("📂  Lihat Hasil Scrape",       run_view_results),
+    "9": ("🎬  Scrape DrakorKita",        run_scrape_drakorkita),
     "0": ("🚪  Keluar",                   None),
 }
 
