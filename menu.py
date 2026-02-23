@@ -748,13 +748,7 @@ def run_scrape_custom():
     print_header("⑤ SCRAPE URL CUSTOM")
 
     print(f"""  {Fore.CYAN}Teknik yang tersedia:{Style.RESET_ALL}
-
-    {Fore.YELLOW}auto{Style.RESET_ALL}    — Auto-detect teknik terbaik (direkomendasikan)
-    {Fore.YELLOW}direct{Style.RESET_ALL}  — ① Direct Request + BeautifulSoup (cepat, tanpa browser)
-    {Fore.YELLOW}capture{Style.RESET_ALL} — ② Network Capture Playwright (intercept XHR/API)
-    {Fore.YELLOW}dom{Style.RESET_ALL}     — ③ DOM Extraction Playwright (konten JS-rendered)
-    {Fore.YELLOW}ssr{Style.RESET_ALL}     — ④ SSR Parser Next.js / Nuxt (paling cepat)
-    {Fore.YELLOW}main{Style.RESET_ALL}    — Jalankan main.py (pipeline lengkap semua layer)
+    {Fore.YELLOW}Auto-detect{Style.RESET_ALL} — Pipeline lengkap (Direct -> Network Capture -> DOM -> Dekripsi -> JS Extractor)
 """)
 
     url = ask("URL yang akan di-scrape")
@@ -763,71 +757,17 @@ def run_scrape_custom():
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
         return
 
-    technique = ask("Teknik (auto/direct/capture/dom/ssr/main)", "auto")
-
     info(f"Target: {url}")
-    info(f"Teknik: {technique}")
     print()
 
-    timestamp = int(time.time())
-    data = None
-
-    if technique == "main":
+    # Jalankan pipeline utama dari main.py
+    try:
         subprocess.run([sys.executable, "main.py", url],
                        cwd=os.path.dirname(os.path.abspath(__file__)))
-        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
-        return
+    except Exception as e:
+        err(f"Gagal menjalankan scraper: {e}")
 
-    elif technique == "direct":
-        data = technique_direct_request(url)
-
-    elif technique == "capture":
-        info("Membuka browser headless (Network Capture)...")
-        data = technique_network_capture(url)
-
-    elif technique == "dom":
-        info("Membuka browser headless (DOM Extraction)...")
-        data = technique_dom_extraction(url)
-
-    elif technique == "ssr":
-        info("Mencoba SSR parser (tanpa browser)...")
-        data = technique_ssr_parser(url)
-        if not data:
-            warn("SSR tidak ditemukan. Mencoba Network Capture sebagai fallback...")
-            data = technique_network_capture(url)
-
-    else:  # auto
-        info("Auto-detect: mencoba SSR parser dulu (paling cepat)...")
-        data = technique_ssr_parser(url)
-        if data:
-            ok("SSR parser berhasil!")
-        else:
-            warn("SSR tidak ada, mencoba Direct Request...")
-            data = technique_direct_request(url)
-            if data and (data.get("tables") or data.get("links")):
-                ok("Direct Request berhasil!")
-            else:
-                warn("Direct Request kurang data, mencoba DOM Extraction (browser)...")
-                data = technique_dom_extraction(url)
-
-    if data:
-        domain_slug = _domain(url).replace(".", "_")
-        out_path = os.path.join(OUTPUT_DIR, f"custom_{domain_slug}_{timestamp}.json")
-        output = {
-            "metadata": {"url": url, "scrape_date": datetime.now().isoformat(),
-                         "technique": technique},
-            "data": data
-        }
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2, default=str)
-
-        size = round(os.path.getsize(out_path) / 1024, 1)
-        show_result(f"SCRAPING SELESAI ({technique})", os.path.abspath(out_path), 1)
-        info(f"Ukuran file: {size} KB")
-    else:
-        err("Tidak ada data yang berhasil diekstrak dari URL tersebut.")
-
-    input(f"  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -835,104 +775,42 @@ def run_scrape_custom():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_all():
-    """Jalankan semua scraper sekaligus menggunakan teknik langsung."""
+    """Jalankan semua scraper sekaligus menggunakan pipeline main.py."""
     print_header("⑥ SCRAPE ALL — SEMUA SEKALIGUS")
 
-    warn("Mode ini akan menjalankan semua scraper secara berurutan.")
-    warn("Estimasi waktu: ~5-10 menit total.")
+    warn("Mode ini akan menjalankan scraper pipeline ke beberapa target utama.")
+    warn("Estimasi waktu: ~2-5 menit total.")
     confirm = ask("Lanjutkan? (y/n)", "y")
     if confirm.lower() != "y":
         return
 
-    tasks = [
-        ("① Harga Emas",                 "emas"),
-        ("② Cryptocurrency",              "crypto"),
-        ("③ Berita (Kompas.com)",          "berita"),
-        ("④ Saham US (Pluang)",           "saham"),
-        ("⑤ Mata Uang (TradingEconomics)","currency"),
+    targets = [
+        ("① Galeri24 (Harga Emas)",      "https://galeri24.co.id/"),
+        ("② CoinMarketCap (Crypto)",   "https://coinmarketcap.com/"),
+        ("③ Kompas.com (Berita)",       "https://www.kompas.com/"),
+        ("④ Pluang (Saham)",            "https://pluang.com/saham-as"),
+        ("⑤ TradingEconomics (Forex)",  "https://id.tradingeconomics.com/currencies"),
     ]
 
     results = []
-    total = len(tasks)
+    total = len(targets)
 
-    for i, (name, category) in enumerate(tasks, 1):
-        head(f"[{i}/{total}] {name}")
+    for i, (name, url) in enumerate(targets, 1):
+        head(f"[{i}/{total}] Scraping {name}...")
         t0 = time.time()
         try:
-            if category == "emas":
-                # Direct request untuk semua sumber emas
-                for src_name, src_url in [("Harga-Emas.org", "https://harga-emas.org/"),
-                                           ("Galeri24", "https://galeri24.co.id/")]:
-                    info(f"  Scraping {src_name}...")
-                    data = technique_direct_request(src_url, category="emas")
-                    if data and data.get("tables"):
-                        ts = int(time.time())
-                        path = os.path.join(OUTPUT_DIR, f"emas_{_domain(src_url).replace('.','_')}_{ts}.json")
-                        with open(path, "w", encoding="utf-8") as f:
-                            json.dump({"metadata": {"source": src_url, "scrape_date": datetime.now().isoformat()},
-                                       "data": data}, f, ensure_ascii=False, indent=2, default=str)
-                        ok(f"  {src_name}: {len(data['tables'])} tabel → {path}")
-
-            elif category == "crypto":
-                info(f"  Scraping CoinMarketCap via Network Capture...")
-                nc_data = technique_network_capture("https://coinmarketcap.com/")
-                if nc_data and nc_data.get("captured_apis"):
-                    ts = int(time.time())
-                    path = os.path.join(OUTPUT_DIR, f"crypto_coinmarketcap_{ts}.json")
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump(nc_data, f, ensure_ascii=False, indent=2, default=str)
-                    ok(f"  {len(nc_data['captured_apis'])} API endpoint tertangkap → {path}")
-
-            elif category == "berita":
-                info(f"  Scraping Kompas.com via DOM Extraction...")
-                dom = technique_dom_extraction("https://www.kompas.com/")
-                if dom and dom.get("articles"):
-                    ts = int(time.time())
-                    path = os.path.join(OUTPUT_DIR, f"berita_kompas_{ts}.json")
-                    arts = [a for a in dom["articles"] if _is_article_url(a.get("url", ""))]
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump({"metadata": {"scrape_date": datetime.now().isoformat(), "count": len(arts)},
-                                   "articles": arts}, f, ensure_ascii=False, indent=2, default=str)
-                    ok(f"  {len(arts)} artikel ditemukan → {path}")
-
-            elif category == "saham":
-                info(f"  Scraping Pluang via SSR Parser...")
-                all_stocks = []
-                for pg in range(1, 65):
-                    url = f"https://pluang.com/saham-as?page={pg}" if pg > 1 else "https://pluang.com/saham-as"
-                    data = technique_ssr_parser(url)
-                    if not data:
-                        break
-                    try:
-                        stocks = data.get("props", {}).get("pageProps", {}).get("stocks", [])
-                        if stocks:
-                            all_stocks.extend(stocks)
-                        else:
-                            break
-                    except Exception:
-                        break
-                if all_stocks:
-                    ts = int(time.time())
-                    path = os.path.join(OUTPUT_DIR, f"pluang_all_stocks_{ts}.json")
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump({"metadata": {"total_stocks_found": len(all_stocks)},
-                                   "stocks": all_stocks}, f, ensure_ascii=False, indent=2, default=str)
-                    ok(f"  {len(all_stocks)} ticker → {path}")
-
-            elif category == "currency":
-                info(f"  Scraping TradingEconomics via DOM Extraction...")
-                dom = technique_dom_extraction("https://id.tradingeconomics.com/currencies",
-                                                selectors=["table"])
-                if dom and dom.get("tables"):
-                    ts = int(time.time())
-                    path = os.path.join(OUTPUT_DIR, f"tradingeconomics_currencies_{ts}.json")
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump(dom, f, ensure_ascii=False, indent=2, default=str)
-                    ok(f"  {len(dom['tables'])} tabel → {path}")
-
+            print(f"  {Fore.CYAN}→ URL: {url}{Style.RESET_ALL}\n")
+            # Call main.py process
+            res = subprocess.run([sys.executable, "main.py", url],
+                                 cwd=os.path.dirname(os.path.abspath(__file__)))
+            
             elapsed = round(time.time() - t0, 1)
-            ok(f"Selesai dalam {elapsed}s")
-            results.append((name, "✓ OK", elapsed))
+            if res.returncode == 0:
+                ok(f"Selesai dalam {elapsed}s")
+                results.append((name, "✓ OK", elapsed))
+            else:
+                err(f"Gagal dalam {elapsed}s (Exit code: {res.returncode})")
+                results.append((name, "✗ GAGAL", elapsed))
 
         except Exception as e:
             elapsed = round(time.time() - t0, 1)
@@ -944,7 +822,7 @@ def run_scrape_all():
     print()
     for name, status, elapsed in results:
         color = Fore.GREEN if "OK" in status else Fore.RED
-        print(f"  {color}{status}{Style.RESET_ALL}  {name} ({elapsed}s)")
+        print(f"  {color}{status:<8}{Style.RESET_ALL} {name} ({elapsed}s)")
 
     print()
     ok(f"Scrape All selesai! Lihat folder {Fore.CYAN}hasil_scrape/{Style.RESET_ALL}")
