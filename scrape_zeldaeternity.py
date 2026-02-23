@@ -264,7 +264,8 @@ def scrape_detail(detail_url: str) -> dict | None:
     for ep_link in soup.select(".gmr-listseries a.button, .gmr-listseries a"):
         ep_text = ep_link.get_text(strip=True)
         ep_url = ep_link.get("href", "")
-        if ep_text and ep_url:
+        # HANYA ambil link episode yang mengarah ke /eps/ URL
+        if ep_text and ep_url and "/eps/" in ep_url:
             episodes.append({
                 "label": ep_text,
                 "url": ep_url,
@@ -352,7 +353,14 @@ def scrape_episode_page(ep_url: str) -> dict:
     soup = BeautifulSoup(resp.text, "html.parser")
 
     # Video iframe
-    iframe = soup.select_one(".gmr-embed-responsive iframe, iframe")
+    iframe = soup.select_one(".gmr-embed-responsive iframe")
+    if not iframe:
+        # Fallback: cari iframe manapun yang bukan iklan
+        for ifr in soup.select("iframe"):
+            src = ifr.get("src", "") or ifr.get("data-src", "")
+            if src and "ad" not in src.lower() and "klik" not in src.lower() and "google" not in src.lower():
+                iframe = ifr
+                break
     if iframe:
         src = iframe.get("src") or iframe.get("data-src") or ""
         if src and "ad" not in src.lower() and "klik" not in src.lower():
@@ -365,15 +373,50 @@ def scrape_episode_page(ep_url: str) -> dict:
         if srv_name:
             result["servers"].append({"name": srv_name, "data": srv_data})
 
-    # Download links
+    # Download links — cek beberapa lokasi
+    dl_links_found = []
+
+    # 1) #download section
     dl_section = soup.select_one("#download")
     if dl_section:
         for a in dl_section.select("a[href]"):
             href = a.get("href", "")
             text = a.get_text(strip=True)
             if href and "klik.best" not in href:
-                result["download_links"].append({"text": text or "Download", "url": href})
+                dl_links_found.append({"text": text or "Download", "url": href})
 
+    # 2) ul.gmr-download-list
+    if not dl_links_found:
+        for a in soup.select("ul.gmr-download-list a[href], .dl-box a[href]"):
+            href = a.get("href", "")
+            text = a.get_text(strip=True)
+            if href and "klik.best" not in href:
+                dl_links_found.append({"text": text or "Download", "url": href})
+
+    # 3) Fallback: h3 Download + sibling links
+    if not dl_links_found:
+        for h3 in soup.select("h3"):
+            if "download" in h3.get_text(strip=True).lower():
+                next_el = h3.find_next_sibling()
+                while next_el and next_el.name in ("ul", "ol", "p", "div"):
+                    for a in next_el.select("a[href]"):
+                        href = a.get("href", "")
+                        text = a.get_text(strip=True)
+                        if href and "klik.best" not in href:
+                            dl_links_found.append({"text": text or "Download", "url": href})
+                    next_el = next_el.find_next_sibling()
+                    if next_el and next_el.name in ("h3", "h2", "h1"):
+                        break
+                break
+
+    # 4) Last resort: cari link ke kagefiles/imaxstreams/peytonepre/iplayerhls
+    if not dl_links_found:
+        for a in soup.select('a[href*="kagefiles"], a[href*="imaxstreams"], a[href*="peytonepre"], a[href*="iplayerhls"]'):
+            href = a.get("href", "")
+            text = a.get_text(strip=True)
+            dl_links_found.append({"text": text or "Download", "url": href})
+
+    result["download_links"] = dl_links_found
     return result
 
 
@@ -476,12 +519,20 @@ def run_full_scrape(
             detail = scrape_detail(item["detail_url"])
 
             if detail:
+                # Log info movie: download & video
+                if detail.get("download_links"):
+                    log.info(f"  📥 {len(detail['download_links'])} download link")
+                if detail.get("video_embed"):
+                    log.info(f"  🎬 Video: {detail['video_embed'][:60]}")
+
                 details.append(detail)
 
                 # Opsional: Scrape episode details
                 if scrape_episodes and detail.get("episodes"):
-                    log.info(f"  → Scraping {len(detail['episodes'])} episode details...")
+                    log.info(f"  → Scraping {len(detail['episodes'])} episode (video + download)...")
                     ep_data = []
+                    vid_count = 0
+                    dl_count = 0
                     for j, ep in enumerate(detail["episodes"], 1):
                         try:
                             ep_result = scrape_episode_page(ep["url"])
@@ -489,13 +540,18 @@ def run_full_scrape(
                                 "label": ep["label"],
                                 **ep_result,
                             })
+                            v = "✓" if ep_result.get("video_embed") else "✗"
+                            d = len(ep_result.get("download_links", []))
                             if ep_result.get("video_embed"):
-                                log.info(f"    Ep {ep['label']}: {ep_result['video_embed'][:50]}...")
+                                vid_count += 1
+                            dl_count += d
+                            log.info(f"    {ep['label']}: Video={v}  Download={d} link")
                             time.sleep(0.3)
                         except KeyboardInterrupt:
                             log.warning(f"\n⚠ Episode scraping dihentikan.")
                             break
                     detail["episode_details"] = ep_data
+                    log.info(f"  ✓ {vid_count}/{len(ep_data)} video, {dl_count} download link total")
 
             time.sleep(0.3)
 
