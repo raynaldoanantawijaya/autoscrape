@@ -1007,6 +1007,205 @@ def _is_article_url(url: str) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# LIHAT HASIL SCRAPE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_view_results():
+    """Lihat dan jelajahi hasil scraping yang tersimpan."""
+    while True:
+        print_header("📂 LIHAT HASIL SCRAPE")
+
+        files = sorted(glob.glob(os.path.join(OUTPUT_DIR, "*.json")),
+                       key=os.path.getmtime, reverse=True)
+
+        if not files:
+            err("Belum ada file hasil scrape.")
+            info(f"Jalankan scraper terlebih dahulu untuk membuat output.")
+            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+            return
+
+        print(f"  {Fore.CYAN}Ditemukan {len(files)} file hasil scrape:{Style.RESET_ALL}\n")
+
+        # Tampilkan daftar file
+        page_size = 15
+        for i, fp in enumerate(files[:page_size], 1):
+            fname = os.path.basename(fp)
+            sz = round(os.path.getsize(fp) / 1024, 1)
+            ts = os.path.getmtime(fp)
+            dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+            print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. {fname[:55]:55}  {Fore.CYAN}{sz:>8} KB{Style.RESET_ALL}  {dt}")
+
+        if len(files) > page_size:
+            print(f"\n    {Fore.YELLOW}...{Style.RESET_ALL} dan {len(files) - page_size} file lainnya")
+
+        print(f"\n    {Fore.YELLOW} d{Style.RESET_ALL}. Hapus file tertentu")
+        print(f"    {Fore.YELLOW} 0{Style.RESET_ALL}. Kembali ke menu utama\n")
+
+        choice = ask(f"Pilih file (1-{min(len(files), page_size)}, d, atau 0)", "0")
+
+        if choice == "0":
+            return
+
+        if choice.lower() == "d":
+            del_choice = ask(f"Nomor file yang akan dihapus (1-{min(len(files), page_size)})")
+            try:
+                del_idx = int(del_choice) - 1
+                if 0 <= del_idx < len(files):
+                    fname = os.path.basename(files[del_idx])
+                    confirm = ask(f"Yakin hapus {fname}? (y/n)", "n")
+                    if confirm.lower() == "y":
+                        os.remove(files[del_idx])
+                        ok(f"File {fname} berhasil dihapus!")
+                        time.sleep(1)
+                    continue
+            except ValueError:
+                err("Pilihan tidak valid.")
+                time.sleep(1)
+                continue
+
+        try:
+            idx = int(choice) - 1
+        except ValueError:
+            err("Pilihan tidak valid.")
+            time.sleep(1)
+            continue
+
+        if idx < 0 or idx >= min(len(files), page_size):
+            err("Nomor file tidak valid.")
+            time.sleep(1)
+            continue
+
+        # ── Tampilkan isi file ──
+        filepath = files[idx]
+        fname = os.path.basename(filepath)
+        clear()
+        print_header(f"📄 {fname}")
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            err(f"Gagal membaca file: {e}")
+            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+            continue
+
+        sz = round(os.path.getsize(filepath) / 1024, 1)
+        info(f"Ukuran: {sz} KB")
+        info(f"Path: {os.path.abspath(filepath)}")
+        print()
+
+        # ── Metadata ──
+        meta = data.get("metadata", {})
+        if meta:
+            head("Metadata:")
+            for k, v in meta.items():
+                print(f"    {Fore.CYAN}{k}{Style.RESET_ALL}: {v}")
+            print()
+
+        # ── Data utama ──
+        inner = data.get("data", data)
+
+        technique = ""
+        if isinstance(inner, dict):
+            technique = inner.get("technique", meta.get("technique_used", ""))
+
+        if technique:
+            info(f"Teknik: {Fore.GREEN}{technique}{Style.RESET_ALL}")
+            print()
+
+        # Tabel
+        tables = []
+        if isinstance(inner, dict):
+            tables = inner.get("tables", [])
+        if tables:
+            head(f"Tabel ({len(tables)} ditemukan):")
+            for ti, tbl in enumerate(tables[:3], 1):
+                headers = tbl.get("headers", [])
+                rows = tbl.get("rows", [])
+                if headers:
+                    print(f"\n    {Fore.YELLOW}Tabel {ti}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:6])}")
+                for row in rows[:8]:
+                    if isinstance(row, dict):
+                        vals = " | ".join(f"{v}" for v in list(row.values())[:6])
+                    else:
+                        vals = " | ".join(str(c) for c in row[:6])
+                    print(f"      {Fore.CYAN}→{Style.RESET_ALL} {vals}")
+                if len(rows) > 8:
+                    print(f"      {Fore.YELLOW}... +{len(rows)-8} baris lagi{Style.RESET_ALL}")
+            print()
+
+        # Captured APIs
+        apis = {}
+        if isinstance(inner, dict):
+            apis = inner.get("captured_apis", {})
+        if apis:
+            head(f"API Endpoint Tertangkap ({len(apis)}):")
+            for api_url in list(apis.keys())[:10]:
+                short = api_url[:90] + ("..." if len(api_url) > 90 else "")
+                body = apis[api_url]
+                body_type = type(body).__name__
+                body_len = len(body) if isinstance(body, (list, dict)) else "-"
+                print(f"    {Fore.GREEN}→{Style.RESET_ALL} {short}")
+                print(f"      {Fore.CYAN}Type: {body_type}, Items: {body_len}{Style.RESET_ALL}")
+            if len(apis) > 10:
+                print(f"    {Fore.YELLOW}... +{len(apis)-10} endpoint lagi{Style.RESET_ALL}")
+            print()
+
+        # SSR Data
+        ssr = None
+        if isinstance(inner, dict):
+            ssr = inner.get("ssr_data")
+        if ssr and isinstance(ssr, dict):
+            head("SSR Data (Next.js / Nuxt):")
+            props = ssr.get("props", {}).get("pageProps", {})
+            if props:
+                for k in list(props.keys())[:10]:
+                    v = props[k]
+                    if isinstance(v, (dict, list)):
+                        vlen = len(v)
+                        print(f"    {Fore.GREEN}{k}{Style.RESET_ALL}: {type(v).__name__}({vlen} item)")
+                    else:
+                        print(f"    {Fore.GREEN}{k}{Style.RESET_ALL}: {str(v)[:80]}")
+            print()
+
+        # Articles
+        articles = []
+        if isinstance(inner, dict):
+            articles = inner.get("articles", [])
+        if not articles:
+            articles = data.get("articles", [])
+        if articles:
+            head(f"Artikel/Link ({len(articles)} item):")
+            for a in articles[:10]:
+                judul = a.get("judul", a.get("title", ""))[:70]
+                url_art = a.get("url", "")[:60]
+                if judul:
+                    print(f"    {Fore.CYAN}→{Style.RESET_ALL} {judul}")
+                    if url_art:
+                        print(f"      {Fore.BLUE}{url_art}{Style.RESET_ALL}")
+            if len(articles) > 10:
+                print(f"    {Fore.YELLOW}... +{len(articles)-10} item lagi{Style.RESET_ALL}")
+            print()
+
+        # Stocks
+        stocks = data.get("stocks", [])
+        if stocks:
+            head(f"Stocks ({len(stocks)} ticker):")
+            for s in stocks[:10]:
+                if isinstance(s, dict):
+                    sym = s.get("symbol", s.get("ticker", "?"))
+                    name_ = s.get("name", s.get("companyName", ""))
+                    price = s.get("price", s.get("lastPrice", "?"))
+                    print(f"    {Fore.GREEN}{sym:>6}{Style.RESET_ALL}  {name_[:40]:40}  ${price}")
+            if len(stocks) > 10:
+                print(f"    {Fore.YELLOW}... +{len(stocks)-10} ticker lagi{Style.RESET_ALL}")
+            print()
+
+        input(f"  {Fore.YELLOW}[Enter untuk kembali ke daftar file]{Style.RESET_ALL}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN MENU
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1031,6 +1230,7 @@ MENU_OPTIONS = {
     "5": ("🌐  Scrape URL Custom",        run_scrape_custom),
     "6": ("⚡  SCRAPE ALL (Semua Data)", run_scrape_all),
     "7": ("🚀  Jalankan API Server",      run_api_server),
+    "8": ("📂  Lihat Hasil Scrape",       run_view_results),
     "0": ("🚪  Keluar",                   None),
 }
 
