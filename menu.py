@@ -507,11 +507,15 @@ def run_scrape_emas():
         name, url = sources[idx]
     elif idx == len(sources):
         url = ask("Masukkan URL sumber harga emas")
-        name = ask("Nama sumber", "Custom")
         if not url:
             err("URL kosong!")
             input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
+        
+        default_name = _domain(url).title()
+        name = ask(f"Nama sumber [{default_name}]", default_name)
+        if not name:
+            name = default_name
     else:
         err("Pilihan tidak valid.")
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
@@ -553,11 +557,15 @@ def run_scrape_crypto():
         name, url = sources[idx]
     elif idx == len(sources):
         url = ask("Masukkan URL sumber crypto")
-        name = ask("Nama sumber", "Custom")
         if not url:
             err("URL kosong!")
             input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
+            
+        default_name = _domain(url).title()
+        name = ask(f"Nama sumber [{default_name}]", default_name)
+        if not name:
+            name = default_name
     else:
         err("Pilihan tidak valid.")
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
@@ -604,11 +612,15 @@ def run_scrape_berita():
         name, url = sources[idx]
     elif idx == len(sources):
         url = ask("Masukkan URL sumber berita")
-        name = ask("Nama sumber", "Custom")
         if not url:
             err("URL kosong!")
             input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
+            
+        default_name = _domain(url).title()
+        name = ask(f"Nama sumber [{default_name}]", default_name)
+        if not name:
+            name = default_name
     else:
         err("Pilihan tidak valid.")
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
@@ -650,11 +662,15 @@ def run_scrape_saham():
         name, url = sources[idx]
     elif idx == len(sources):
         url = ask("Masukkan URL halaman saham/keuangan")
-        name = ask("Nama sumber", "Custom")
         if not url:
             err("URL kosong!")
             input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
+            
+        default_name = _domain(url).title()
+        name = ask(f"Nama sumber [{default_name}]", default_name)
+        if not name:
+            name = default_name
     else:
         err("Pilihan tidak valid.")
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
