@@ -357,3 +357,8 @@
 2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://tracker.oval.id/74880235-2484-4402-922f-202c2773b82e/v1/event-tracker
 2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://tracker.oval.id/74880235-2484-4402-922f-202c2773b82e/v1/event-tracker
 2026-02-23 18:51:26 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/www_kompas_com_network_capture_1771847486.json ===
+2026-02-23 19:26:02 [INFO] main: === Memulai Auto Web Scraper untuk: https://galeri24.co.id/ ===
+2026-02-23 19:26:02 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-23 19:26:02 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://galeri24.co.id/
+2026-02-23 19:26:10 [INFO] direct_request: Berhasil mendapatkan data dari https://galeri24.co.id/api/products
+2026-02-23 19:26:10 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/galeri24_co_id_direct_api_1771849570.json ===

@@ -12,6 +12,17 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _get_browser_path():
+    """Cari lokasi browser chromium di sistem sebagai fallback."""
+    for p in ["/usr/bin/chromium", "/usr/bin/chromium-browser",
+              "/usr/bin/google-chrome",
+              "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+              "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"]:
+        if os.path.exists(p):
+            return p
+    return None
+
 class CaptureResult:
     def __init__(self):
         self.responses = []
@@ -47,11 +58,25 @@ def capture(url, stealth_config=None, proxies=None):
         # Custom args untuk bypass ringan
         args = ["--disable-blink-features=AutomationControlled"]
         
-        browser = browser_type.launch(
-            headless=settings.HEADLESS,
-            args=args,
-            proxy=proxies if proxies else None
-        )
+        launch_kwargs = {
+            "headless": settings.HEADLESS,
+            "args": args,
+        }
+        if proxies:
+            launch_kwargs["proxy"] = proxies
+
+        # Fallback ke browser sistem jika Playwright managed browser tidak ada
+        sys_browser = _get_browser_path()
+        if sys_browser:
+            launch_kwargs["executable_path"] = sys_browser
+            logger.info(f"Menggunakan browser sistem: {sys_browser}")
+
+        try:
+            browser = browser_type.launch(**launch_kwargs)
+        except Exception as e:
+            logger.warning(f"Gagal launch dengan executable_path: {e}")
+            launch_kwargs.pop("executable_path", None)
+            browser = browser_type.launch(**launch_kwargs)
         
         context_options = {
             "viewport": {"width": 1920, "height": 1080},
