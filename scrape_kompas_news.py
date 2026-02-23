@@ -42,6 +42,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger("kompas_scraper")
 
+# ─── Browser Helper ──────────────────────────────────────────────────────────
+
+def get_browser_path():
+    """Cari lokasi browser chromium di sistem sebagai fallback."""
+    paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    return None
+
 # ─── Ekstraksi Artikel via JavaScript di DOM ──────────────────────────────────
 
 EXTRACT_SCRIPT = """
@@ -162,7 +178,18 @@ def main():
     all_articles = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # Gunakan browser sistem jika ada (untuk bypass download yang lambat)
+        browser_path = get_browser_path()
+        launch_args = {"headless": True}
+        if browser_path:
+            launch_args["executable_path"] = browser_path
+            logger.info(f"Menggunakan browser sistem: {browser_path}")
+
+        try:
+            browser = p.chromium.launch(**launch_args)
+        except Exception as e:
+            logger.warning(f"Gagal launch browser: {e}. Mencoba tanpa executable_path...")
+            browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768},

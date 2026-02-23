@@ -53,6 +53,22 @@ logger = logging.getLogger("menu")
 OUTPUT_DIR = "hasil_scrape"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# ─── Browser Helper ──────────────────────────────────────────────────────────
+
+def get_browser_path():
+    """Cari lokasi browser chromium di sistem sebagai fallback."""
+    paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    return None
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAMPILAN / UI
 # ══════════════════════════════════════════════════════════════════════════════
@@ -201,7 +217,16 @@ def technique_network_capture(url: str) -> dict | None:
             pass
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser_path = get_browser_path()
+        launch_args = {"headless": True}
+        if browser_path:
+            launch_args["executable_path"] = browser_path
+        
+        try:
+            browser = p.chromium.launch(**launch_args)
+        except Exception:
+            browser = p.chromium.launch(headless=True)
+
         ctx = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
             viewport={"width": 1280, "height": 900}
@@ -265,7 +290,16 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
         selectors = ['article', '[class*="article"]', '[class*="card"]', 'table', 'li']
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser_path = get_browser_path()
+        launch_args = {"headless": True}
+        if browser_path:
+            launch_args["executable_path"] = browser_path
+
+        try:
+            browser = p.chromium.launch(**launch_args)
+        except Exception:
+            browser = p.chromium.launch(headless=True)
+
         ctx = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 768},

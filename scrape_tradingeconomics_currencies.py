@@ -17,19 +17,21 @@ import logging
 from datetime import datetime
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-# ─── Konfigurasi ─────────────────────────────────────────────────────────────
-URL = "https://id.tradingeconomics.com/currencies"
-OUTPUT_DIR = "hasil_scrape"
-TIMESTAMP = int(time.time())
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, f"tradingeconomics_currencies_{TIMESTAMP}.json")
-PAGE_LOAD_TIMEOUT = 30000  # 30 detik
+# ─── Data Helpers ────────────────────────────────────────────────────────────
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-logger = logging.getLogger("te_currencies")
+def get_browser_path():
+    """Cari lokasi browser chromium di sistem sebagai fallback."""
+    paths = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    return None
 
 def safe_float(val: str):
     """Parse nilai numerik, fallback ke string asli."""
@@ -47,7 +49,18 @@ def scrape_with_playwright():
     total_pairs = 0
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser_path = get_browser_path()
+        launch_args = {"headless": True}
+        if browser_path:
+            launch_args["executable_path"] = browser_path
+            logger.info(f"Menggunakan browser sistem: {browser_path}")
+
+        try:
+            browser = p.chromium.launch(**launch_args)
+        except Exception as e:
+            logger.warning(f"Gagal launch browser: {e}. Mencoba tanpa executable_path...")
+            browser = p.chromium.launch(headless=True)
+
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             locale="id-ID",
