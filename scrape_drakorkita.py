@@ -152,7 +152,12 @@ def crawl_all_listings(max_pages: int = None, params: dict = None) -> list[dict]
 # ══════════════════════════════════════════════════════════════════════════════
 
 def scrape_detail(detail_url: str) -> dict | None:
-    """Scrape halaman detail: sinopsis, info, cast, genre, poster, episode list."""
+    """Scrape halaman detail: sinopsis, info, cast, genre, poster, episode list.
+    Menggunakan selector CSS spesifik DrakorKita:
+      title  → h1[itemprop=headline]  |  poster → .thumb img
+      genre  → .gnr a                 |  info   → .infox .spe span
+      eps    → .btn-svr               |  server → .btn-sv
+    """
     try:
         resp = SESSION.get(detail_url, timeout=20)
         resp.raise_for_status()
@@ -164,87 +169,170 @@ def scrape_detail(detail_url: str) -> dict | None:
     result = {"url": detail_url}
 
     # ── Judul ──
-    h1 = soup.select_one("h1")
-    result["title"] = h1.get_text(strip=True) if h1 else ""
+    # Prioritas: h1[itemprop="headline"], lalu h1 kedua (yang bukan site title)
+    headline = soup.select_one('h1[itemprop="headline"]')
+    if headline:
+        result["title"] = headline.get_text(strip=True)
+    else:
+        all_h1 = soup.select("h1")
+        # H1 pertama biasanya site title, ambil yang kedua
+        if len(all_h1) >= 2:
+            result["title"] = all_h1[1].get_text(strip=True)
+        elif all_h1:
+            result["title"] = all_h1[0].get_text(strip=True)
+        else:
+            result["title"] = ""
 
-    # ── Poster ──
-    poster_img = soup.select_one(".poster img, .thumbnail img, .detail img")
+    # Bersihkan prefix umum dari title
+    title = result["title"]
+    for prefix in ["Nonton ", "Download "]:
+        if title.startswith(prefix):
+            title = title[len(prefix):]
+    # Hapus "Subtitle Indonesia" di akhir
+    title = re.sub(r'\s*Subtitle Indonesia\s*$', '', title)
+    result["title"] = title.strip()
+
+    # ── Judul Alternatif / Korea ──
+    alter = soup.select_one("span.alter")
+    if alter:
+        result["alternative_title"] = alter.get_text(strip=True)
+
+    # ── Poster (.thumb img) ──
+    poster_img = soup.select_one(".thumb img")
     if poster_img:
         result["poster"] = poster_img.get("data-src") or poster_img.get("src") or ""
     else:
-        result["poster"] = ""
+        # Fallback
+        poster_img = soup.select_one(".poster img, img[itemprop='image']")
+        result["poster"] = (poster_img.get("data-src") or poster_img.get("src") or "") if poster_img else ""
 
     # ── Banner / Backdrop ──
-    banner_img = soup.select_one(".banner img, .backdrop img, .movie-bg img")
-    if banner_img:
-        result["banner"] = banner_img.get("data-src") or banner_img.get("src") or ""
+    banner_el = soup.select_one(".bigcover img, .banner img, .backdrop img")
+    if banner_el:
+        result["banner"] = banner_el.get("data-src") or banner_el.get("src") or ""
 
     # ── Sinopsis ──
-    synopsis_el = soup.find(string=re.compile(r"Sinopsis", re.I))
-    if synopsis_el:
-        parent = synopsis_el.find_parent()
-        if parent:
-            # Ambil teks setelah header sinopsis
-            next_p = parent.find_next("p")
-            if next_p:
-                result["sinopsis"] = next_p.get_text(strip=True)
-            else:
-                # Coba ambil sibling text
-                sibling = parent.find_next_sibling()
-                if sibling:
-                    result["sinopsis"] = sibling.get_text(strip=True)
+    # Cari di .desc, .sinopsis, atau teks setelah header Sinopsis
+    sinopsis_div = soup.select_one(".desc, .sinopsis")
+    if sinopsis_div:
+        result["sinopsis"] = sinopsis_div.get_text(strip=True)
+    else:
+        synopsis_header = soup.find(string=re.compile(r"Sinopsis", re.I))
+        if synopsis_header:
+            parent = synopsis_header.find_parent()
+            if parent:
+                next_el = parent.find_next_sibling()
+                if next_el:
+                    result["sinopsis"] = next_el.get_text(strip=True)
+                else:
+                    next_p = parent.find_next("p")
+                    if next_p:
+                        result["sinopsis"] = next_p.get_text(strip=True)
 
-    if "sinopsis" not in result:
-        # Fallback: cari meta description
-        meta = soup.find("meta", {"name": "description"})
+    if "sinopsis" not in result or not result.get("sinopsis"):
+        meta = soup.find("meta", attrs={"name": "description"})
         if meta:
             result["sinopsis"] = meta.get("content", "")
 
-    # ── Informasi detail (Type, Status, Season, Episode Count, dll) ──
-    info_section = soup.find(string=re.compile(r"Informasi", re.I))
-    if info_section:
-        info_parent = info_section.find_parent()
-        if info_parent:
-            info_container = info_parent.find_parent() or info_parent
-            for li in info_container.find_all("li"):
-                text = li.get_text(strip=True)
-                if ":" in text:
-                    key, _, value = text.partition(":")
-                    key = key.strip().lower().replace(" ", "_")
-                    value = value.strip()
-                    if key and value:
-                        result[key] = value
+    # ── Informasi detail dari <li> parent class=anf DAN <span> standalone ──
+    info_fields = {}
+    # Cara 1: LI di dalam .anf
+    for li in soup.select(".anf li"):
+        text = li.get_text(" ", strip=True)
+        if " : " in text:
+            key, _, value = text.partition(" : ")
+            key = key.strip()
+            value = value.strip()
+            if key and value:
+                key_clean = key.lower().replace(" ", "_")
+                info_fields[key_clean] = value
+    # Cara 2: Standalone <span> yang punya " : " (fallback)
+    if not info_fields:
+        for span in soup.select("span"):
+            text = span.get_text(" ", strip=True)
+            if " : " in text and len(text) < 150:
+                key, _, value = text.partition(" : ")
+                key = key.strip()
+                value = value.strip()
+                if key and value and key.lower() not in ("sinopsis", "informasi"):
+                    key_clean = key.lower().replace(" ", "_")
+                    if key_clean not in info_fields:
+                        info_fields[key_clean] = value
 
-    # ── Genre ──
+    # Map ke field standar
+    result["type"] = info_fields.get("type", "")
+    result["status"] = info_fields.get("status", "")
+    result["season"] = info_fields.get("season", "")
+    result["episode_count"] = info_fields.get("episode_count", "")
+    result["first_air_date"] = info_fields.get("first_air_date", "")
+    result["video_length"] = info_fields.get("video_length", "")
+    result["views"] = info_fields.get("views", "")
+    result["posted_on"] = info_fields.get("posted_on", "")
+
+    # Sisanya yang tidak ter-map
+    for k, v in info_fields.items():
+        if k not in result:
+            result[k] = v
+
+    # ── Genre dari .gnr a (scoped, bukan sidebar) ──
     genres = []
-    for a in soup.select("a[href*='genre=']"):
-        g = a.get_text(strip=True)
-        if g and g not in genres:
-            genres.append(g)
+    gnr_container = soup.select_one(".gnr")
+    if gnr_container:
+        for a in gnr_container.select("a"):
+            g = a.get_text(strip=True)
+            if g and g not in genres:
+                genres.append(g)
+    else:
+        # Fallback: ambil dari link genre, tapi scope ke area detail saja
+        infox = soup.select_one(".infox, .detail-content")
+        search_area = infox if infox else soup
+        for a in search_area.select("a[href*='genre=']"):
+            g = a.get_text(strip=True)
+            if g and g not in genres:
+                genres.append(g)
     result["genres"] = genres
 
-    # ── Cast ──
+    # ── Cast (dari .desc-wrap atau .infox, bukan sidebar) ──
     cast = []
-    for a in soup.select("a[href*='cast=']"):
+    cast_area = soup.select_one(".desc-wrap") or soup.select_one(".infox") or soup
+    for a in cast_area.select("a[href*='cast=']"):
         c = a.get_text(strip=True)
+        # Fix merged text: "Choi Jin-hyukas Kang Du-jun" → "Choi Jin-hyuk as Kang Du-jun"
+        c = re.sub(r'(\w)(as )([A-Z])', r'\1 as \3', c)
         if c and c not in cast:
             cast.append(c)
+
+    # Jika cast masih kosong, coba parse dari Stars info field
+    if not cast:
+        stars_text = info_fields.get("stars", "")
+        if stars_text:
+            for part in stars_text.split(","):
+                part = part.strip()
+                part = re.sub(r'(\w)(as )([A-Z])', r'\1 as \3', part)
+                if part and part not in cast:
+                    cast.append(part)
+
     result["cast"] = cast
 
     # ── Director ──
     directors = []
-    for a in soup.select("a[href*='crew=']"):
+    crew_area = cast_area  # Same scoped area
+    for a in crew_area.select("a[href*='crew=']"):
         d = a.get_text(strip=True)
         if d and d not in directors:
             directors.append(d)
+    if not directors and info_fields.get("director"):
+        directors = [info_fields["director"]]
     result["directors"] = directors
 
     # ── Country ──
     country = []
-    for a in soup.select("a[href*='country=']"):
+    for a in crew_area.select("a[href*='country=']"):
         c = a.get_text(strip=True)
         if c and c not in country:
             country.append(c)
+    if not country and info_fields.get("country"):
+        country = [info_fields["country"]]
     result["country"] = country
 
     # ── Score & Ratings ──
@@ -263,52 +351,52 @@ def scrape_detail(detail_url: str) -> dict | None:
         if match:
             result["total_ratings"] = match.group(1)
 
-    # ── Episode List ──
+    # ── Episode list ──
+    # Episode buttons (.btn-svr) are loaded via JS, not in static HTML.
+    # We derive episode count from metadata and generate episode list.
     episodes = []
-    ep_buttons = soup.select("[data-episode], .btn-svr, .ep-btn, [class*='episode']")
+    ep_count_str = result.get("episode_count", "") or ""
+    ep_count = 0
+    try:
+        ep_count = int(re.search(r'\d+', ep_count_str).group()) if ep_count_str else 0
+    except (AttributeError, ValueError):
+        pass
 
-    if ep_buttons:
-        for btn in ep_buttons:
-            ep_num = btn.get("data-episode") or btn.get_text(strip=True)
-            ep_data = {
-                "episode": ep_num,
-                "movie_id": btn.get("data-movieid", ""),
-                "tag": btn.get("data-tag", ""),
-            }
-            # Hindari duplikat
-            if ep_data not in episodes:
-                episodes.append(ep_data)
-    else:
-        # Fallback: cari tombol angka episode
-        for btn in soup.select("a.btn, button.btn, .episode-btn"):
-            text = btn.get_text(strip=True)
-            if text.isdigit():
-                episodes.append({"episode": text})
+    # Juga coba parse dari title ("Episode 1 - 12" → 12)
+    if not ep_count:
+        ep_match = re.search(r'Episode\s+\d+\s*-\s*(\d+)', result.get("title", ""), re.I)
+        if ep_match:
+            ep_count = int(ep_match.group(1))
+
+    for i in range(1, ep_count + 1):
+        episodes.append({"episode": str(i)})
 
     result["episodes"] = episodes
-    result["total_episodes"] = len(episodes)
+    result["total_episodes"] = ep_count
 
-    # ── Video Servers ──
+    # ── Video Servers (.btn-sv) ──
     servers = []
-    for srv_btn in soup.select("[data-server], .server-btn, .btn-server"):
+    for srv_btn in soup.select(".btn-sv"):
         srv_name = srv_btn.get_text(strip=True)
-        srv_id = srv_btn.get("data-server", "")
         if srv_name:
-            servers.append({"name": srv_name, "id": srv_id})
-    result["servers"] = servers
+            servers.append(srv_name)
+    # Dedup
+    result["servers"] = list(dict.fromkeys(servers))
 
     # ── Video Iframe src ──
     iframe = soup.select_one("iframe[src]")
     if iframe:
-        result["video_embed"] = iframe.get("src", "")
+        src = iframe.get("src", "")
+        if src and not src.startswith("about:"):
+            result["video_embed"] = src
 
     # ── Download button / links ──
     download_links = []
-    for a in soup.select("a[href*='download'], a[id='nonot'], .download-btn a"):
-        dl_url = a.get("href", "")
-        dl_text = a.get_text(strip=True)
+    dl_btn = soup.select_one("#nonot, a[id='nonot']")
+    if dl_btn:
+        dl_url = dl_btn.get("href", "")
         if dl_url and dl_url != "#":
-            download_links.append({"text": dl_text, "url": dl_url})
+            download_links.append({"text": "DOWNLOAD", "url": dl_url})
     result["download_links"] = download_links
 
     return result
