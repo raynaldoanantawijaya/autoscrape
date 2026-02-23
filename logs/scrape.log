@@ -1,0 +1,359 @@
+2026-02-22 18:26:10 [INFO] main: === Memulai Auto Web Scraper untuk: https://jsonplaceholder.typicode.com/users ===
+2026-02-22 18:26:10 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:26:10 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://jsonplaceholder.typicode.com/users
+2026-02-22 18:26:10 [INFO] main: === SUKSES: Data berhasil disimpan ke: hasil_scrape\jsonplaceholder_typicode_com_direct_api_1771759570.json ===
+2026-02-22 18:26:45 [INFO] main: === Memulai Auto Web Scraper untuk: https://dummyjson.com/products ===
+2026-02-22 18:26:45 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:26:45 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://dummyjson.com/products
+2026-02-22 18:26:46 [INFO] main: === SUKSES: Data berhasil disimpan ke: hasil_scrape\dummyjson_com_direct_api_1771759606.json ===
+2026-02-22 18:31:28 [INFO] main: === Memulai Auto Web Scraper untuk: https://nasional.kompas.com ===
+2026-02-22 18:31:28 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:31:28 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://nasional.kompas.com
+2026-02-22 18:31:49 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:31:49 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:31:49 [INFO] network_capture: Memulai Network Capture untuk: https://nasional.kompas.com
+2026-02-22 18:31:58 [ERROR] main: Error pada Layer 2: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:31:58 [INFO] main: -> [Layer 4] Memulai Interaksi Aktif (Scroll, Klik Load More)
+2026-02-22 18:31:58 [INFO] interaction: Memulai Simulasi Interaksi untuk memancing data pada: https://nasional.kompas.com
+2026-02-22 18:31:58 [ERROR] main: Error pada Layer 4: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:31:58 [INFO] main: -> [Layer 5] Web Unlocker dimatikan di setting. Lewati Fallback.
+2026-02-22 18:31:58 [ERROR] main: === Kegagalan Scraping: Tidak ada data relevan (JSON) yang ditemukan. ===
+2026-02-22 18:31:58 [INFO] main: Coba cek manual file HAR di folder har/ untuk menelusuri traffic secara mendalam.
+2026-02-22 18:32:15 [INFO] main: === Memulai Auto Web Scraper untuk: https://id.tradingview.com/ ===
+2026-02-22 18:32:15 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:32:15 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://id.tradingview.com/
+2026-02-22 18:33:57 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:33:57 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:33:57 [INFO] network_capture: Memulai Network Capture untuk: https://id.tradingview.com/
+2026-02-22 18:33:58 [ERROR] main: Error pada Layer 2: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:33:58 [INFO] main: -> [Layer 4] Memulai Interaksi Aktif (Scroll, Klik Load More)
+2026-02-22 18:33:58 [INFO] interaction: Memulai Simulasi Interaksi untuk memancing data pada: https://id.tradingview.com/
+2026-02-22 18:33:58 [ERROR] main: Error pada Layer 4: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:33:58 [INFO] main: -> [Layer 5] Web Unlocker dimatikan di setting. Lewati Fallback.
+2026-02-22 18:33:58 [ERROR] main: === Kegagalan Scraping: Tidak ada data relevan (JSON) yang ditemukan. ===
+2026-02-22 18:33:58 [INFO] main: Coba cek manual file HAR di folder har/ untuk menelusuri traffic secara mendalam.
+2026-02-22 18:35:12 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:35:12 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:35:12 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:35:16 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:35:16 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:35:16 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:35:17 [ERROR] main: Error pada Layer 2: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:35:17 [INFO] main: -> [Layer 4] Memulai Interaksi Aktif (Scroll, Klik Load More)
+2026-02-22 18:35:17 [INFO] interaction: Memulai Simulasi Interaksi untuk memancing data pada: https://harga-emas.org/
+2026-02-22 18:35:17 [ERROR] main: Error pada Layer 4: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:35:17 [INFO] main: -> [Layer 5] Web Unlocker dimatikan di setting. Lewati Fallback.
+2026-02-22 18:35:17 [ERROR] main: === Kegagalan Scraping: Tidak ada data relevan (JSON) yang ditemukan. ===
+2026-02-22 18:35:17 [INFO] main: Coba cek manual file HAR di folder har/ untuk menelusuri traffic secara mendalam.
+2026-02-22 18:35:49 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:35:49 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:35:49 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:35:52 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:35:52 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:35:52 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:35:53 [ERROR] main: Error pada Layer 2: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:35:53 [INFO] main: -> [Layer 4] Memulai Interaksi Aktif (Scroll, Klik Load More)
+2026-02-22 18:35:53 [INFO] interaction: Memulai Simulasi Interaksi untuk memancing data pada: https://harga-emas.org/
+2026-02-22 18:35:53 [ERROR] main: Error pada Layer 4: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:35:53 [INFO] main: -> [Layer 5] Web Unlocker dimatikan di setting. Lewati Fallback.
+2026-02-22 18:35:53 [ERROR] main: === Kegagalan Scraping: Tidak ada data relevan (JSON) yang ditemukan. ===
+2026-02-22 18:35:53 [INFO] main: Coba cek manual file HAR di folder har/ untuk menelusuri traffic secara mendalam.
+2026-02-22 18:37:00 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:37:00 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:37:00 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:37:04 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:37:04 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:37:04 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:37:05 [ERROR] main: Error pada Layer 2: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:37:05 [INFO] main: -> [Layer 4] Memulai Interaksi Aktif (Scroll, Klik Load More)
+2026-02-22 18:37:05 [INFO] interaction: Memulai Simulasi Interaksi untuk memancing data pada: https://harga-emas.org/
+2026-02-22 18:37:05 [ERROR] main: Error pada Layer 4: Executable doesn't exist at C:\Users\rayna\AppData\Local\ms-playwright\chromium-1097\chrome-win\chrome.exe
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+2026-02-22 18:37:05 [INFO] main: -> [Layer 5] Web Unlocker dimatikan di setting. Lewati Fallback.
+2026-02-22 18:37:05 [ERROR] main: === Kegagalan Scraping: Tidak ada data relevan (JSON) yang ditemukan. ===
+2026-02-22 18:37:05 [INFO] main: Coba cek manual file HAR di folder har/ untuk menelusuri traffic secara mendalam.
+2026-02-22 18:38:48 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:38:48 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:38:48 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:38:52 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:38:52 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:38:52 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:38:54 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 18:39:00 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 18:39:00 [INFO] network_capture: HAR tersimpan di: har\https___harga_emas_org__1771760332.har
+2026-02-22 18:39:00 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 18:39:00 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 18:39:00 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 18:39:00 [INFO] main: === SUKSES: Data berhasil disimpan ke: hasil_scrape\harga_emas_org_network_capture_1771760340.json ===
+2026-02-22 18:45:21 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:45:21 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:45:21 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:46:19 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:46:19 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:46:19 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:46:19 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-22 18:46:20 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 18:46:24 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 18:46:25 [INFO] network_capture: HAR tersimpan di: har\https___harga_emas_org__1771760779.har
+2026-02-22 18:46:25 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 18:46:25 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 18:46:25 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 18:46:25 [INFO] analysis: Berhasil memformat dan menyusun ulang Harga Emas secara rapi!
+2026-02-22 18:46:25 [INFO] main: === SUKSES: Data Emas (Antam, Pegadaian) disimpan ke hasil_scrape/harga-emas_org_network_capture_1771760785.json ===
+2026-02-22 18:48:02 [INFO] main: === Memulai Auto Web Scraper untuk: https://harga-emas.org/ ===
+2026-02-22 18:48:02 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:48:02 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://harga-emas.org/
+2026-02-22 18:48:14 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:48:14 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:48:14 [INFO] network_capture: Memulai Network Capture untuk: https://harga-emas.org/
+2026-02-22 18:48:15 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-22 18:48:15 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 18:48:20 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 18:48:20 [INFO] network_capture: HAR tersimpan di: har\https___harga_emas_org__1771760894.har
+2026-02-22 18:48:20 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 18:48:20 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 18:48:20 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 18:48:20 [INFO] analysis: Berhasil memformat dan menyusun ulang Harga Emas secara rapi!
+2026-02-22 18:48:20 [INFO] main: === SUKSES: Data Emas (Antam, Pegadaian) disimpan ke hasil_scrape/harga-emas_org_network_capture_1771760900.json ===
+2026-02-22 18:52:49 [INFO] main: === Memulai Auto Web Scraper untuk: https://coinmarketcap.com/ ===
+2026-02-22 18:52:49 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:52:49 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://coinmarketcap.com/
+2026-02-22 18:52:59 [INFO] direct_request: Berhasil mendapatkan data dari https://coinmarketcap.com/.well-known/ai-plugin.json
+2026-02-22 18:52:59 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/coinmarketcap_com_direct_api_1771761179.json ===
+2026-02-22 18:54:30 [INFO] main: === Memulai Auto Web Scraper untuk: https://coinmarketcap.com/ ===
+2026-02-22 18:54:30 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 18:54:30 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://coinmarketcap.com/
+2026-02-22 18:54:41 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 18:54:41 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 18:54:41 [INFO] network_capture: Memulai Network Capture untuk: https://coinmarketcap.com/
+2026-02-22 18:54:42 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 18:54:56 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 18:54:57 [INFO] network_capture: HAR tersimpan di: har\https___coinmarketcap_com__1771761281.har
+2026-02-22 18:54:57 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/content/v1/page-banners
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/unified-trending/top-boost/listing?size=10
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'coin' ditemukan di endpoint: https://api.coinmarketcap.com/geo-info
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/captcha/type
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://dapi.coinmarketcap.com/dex/v1/platform/list
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://coinmarketcap.com/locales/en/sheet_CMC%20AI.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.saasexch.com/bapi/themis/api/v2/strategy/query
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/cryptocurrency/purchase/flag
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'list' ditemukan di endpoint: https://api.coinmarketcap.com/chatbot/v3/bot/list
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/conference/homepage-bubble
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/homepage-bubble/info
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://cdn.cookielaw.org/consent/018e37fb-7a80-717a-a1d2-ba0e159ee446/018e37fb-7a80-717a-a1d2-ba0e159ee446.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/cryptocurrency/purchase/flag
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/chatbot/v3/bot/list
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://api.coinmarketcap.com/content/v3/cdp-banner/get-global-banner
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://coinmarketcap.com/locales/en/sheet_Standalone%20data%20pages.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'stock' ditemukan di endpoint: https://s3.coinmarketcap.com/generated/core/exchange/exchanges.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'emas' ditemukan di endpoint: https://cdn.cookielaw.org/consent/018e37fb-7a80-717a-a1d2-ba0e159ee446/01922827-09bd-7441-a387-a727aa3c5fa7/en.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://s3.coinmarketcap.com/generated/core/crypto/web-search.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'gold' ditemukan di endpoint: https://s3.coinmarketcap.com/generated/core/rwa/search.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'list' ditemukan di endpoint: https://cdn.cookielaw.org/scripttemplates/202409.1.0/assets/otFlat.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://cdn.cookielaw.org/scripttemplates/202409.1.0/assets/v2/otPcCenter.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'gold' ditemukan di endpoint: https://s3.coinmarketcap.com/rights/schedule/boost-schedule.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'gold' ditemukan di endpoint: https://s3.coinmarketcap.com/rights/schedule/boost-schedule.json
+2026-02-22 18:54:57 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.coinmarketcap.com/data-api/v3/airdrop/events/query
+2026-02-22 18:54:57 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 18:54:57 [INFO] analysis: Berhasil mengekstrak data dari koneksi WebSocket.
+2026-02-22 18:54:57 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 18:54:58 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/coinmarketcap_com_network_capture_1771761297.json ===
+2026-02-22 19:04:11 [INFO] main: === Memulai Auto Web Scraper untuk: https://galeri24.co.id/harga-emas ===
+2026-02-22 19:04:11 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:04:11 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://galeri24.co.id/harga-emas
+2026-02-22 19:04:33 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:04:33 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:04:33 [INFO] network_capture: Memulai Network Capture untuk: https://galeri24.co.id/harga-emas
+2026-02-22 19:04:34 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:04:45 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 19:04:45 [INFO] network_capture: HAR tersimpan di: har\https___galeri24_co_id_harga_emas_1771761873.har
+2026-02-22 19:04:45 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:04:45 [INFO] analysis: Target keyword 'emas' ditemukan di endpoint: https://galeri24.co.id/api/product-categories?take=1000
+2026-02-22 19:04:45 [INFO] analysis: Target keyword 'harga' ditemukan di endpoint: https://galeri24.co.id/api/menu
+2026-02-22 19:04:45 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 19:04:45 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/galeri24_co_id_network_capture_1771761885.json ===
+2026-02-22 19:08:31 [INFO] main: === Memulai Auto Web Scraper untuk: https://galeri24.co.id/harga-emas ===
+2026-02-22 19:08:31 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:08:31 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://galeri24.co.id/harga-emas
+2026-02-22 19:08:59 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:08:59 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:08:59 [INFO] network_capture: Memulai Network Capture untuk: https://galeri24.co.id/harga-emas
+2026-02-22 19:09:00 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-22 19:09:00 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:09:08 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 19:09:08 [INFO] network_capture: HAR tersimpan di: har\https___galeri24_co_id_harga_emas_1771762139.har
+2026-02-22 19:09:08 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:09:08 [INFO] analysis: Target keyword 'harga' ditemukan di endpoint: https://galeri24.co.id/api/menu
+2026-02-22 19:09:08 [INFO] analysis: Target keyword 'emas' ditemukan di endpoint: https://galeri24.co.id/api/product-categories?take=1000
+2026-02-22 19:09:08 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 19:09:08 [INFO] analysis: Berhasil memformat dan menyusun ulang Harga Emas secara rapi!
+2026-02-22 19:09:08 [INFO] main: === SUKSES: Data Emas (BABY GALERI 24, BATIK SERIES, UBS DISNEY, ANTAM MULIA RETRO, LOTUS ARCHI GIFT, UBS, ANTAM NON PEGADAIAN, GALERI 24, ANTAM, LOTUS ARCHI, DINAR G24, BABY SERIES TUMBUHAN, BABY SERIES INVESTASI, UBS ELSA, UBS ANNA, UBS MICKEY FULLBODY, UBS HELLO KITTY) disimpan ke hasil_scrape/galeri24_co_id_network_capture_1771762148.json ===
+2026-02-22 19:13:05 [INFO] main: === Memulai Auto Web Scraper untuk: https://pluang.com/explore/us-market/stocks?page=1 ===
+2026-02-22 19:13:05 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:13:05 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:13:23 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:13:23 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:13:23 [INFO] network_capture: Memulai Network Capture untuk: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:13:24 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:13:30 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 19:13:31 [INFO] network_capture: HAR tersimpan di: har\https___pluang_com_explore_us_market_stocks_page_1_1771762403.har
+2026-02-22 19:13:31 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:13:31 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 19:13:31 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 19:13:31 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/pluang_com_network_capture_1771762411.json ===
+2026-02-22 19:14:35 [INFO] main: === Memulai Auto Web Scraper untuk: https://pluang.com/explore/us-market/stocks?page=1 ===
+2026-02-22 19:14:35 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:14:35 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:15:03 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:15:03 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:15:03 [INFO] network_capture: Memulai Network Capture untuk: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:15:04 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-22 19:15:04 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:15:11 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 19:15:11 [INFO] network_capture: HAR tersimpan di: har\https___pluang_com_explore_us_market_stocks_page_1_1771762503.har
+2026-02-22 19:15:11 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:15:11 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 19:15:11 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 19:15:11 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/pluang_com_network_capture_1771762511.json ===
+2026-02-22 19:16:32 [INFO] main: === Memulai Auto Web Scraper untuk: https://pluang.com/explore/us-market/stocks?page=1 ===
+2026-02-22 19:16:32 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:16:32 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:16:39 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:16:39 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:16:39 [INFO] network_capture: Memulai Network Capture untuk: https://pluang.com/explore/us-market/stocks?page=1
+2026-02-22 19:16:40 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-22 19:16:40 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:16:47 [INFO] network_capture: Menyimpan state sesi.
+2026-02-22 19:16:47 [INFO] network_capture: HAR tersimpan di: har\https___pluang_com_explore_us_market_stocks_page_1_1771762599.har
+2026-02-22 19:16:47 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:16:47 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-22 19:16:47 [INFO] analysis: Berhasil mengekstrak data dari tabel HTML statis.
+2026-02-22 19:16:47 [INFO] analysis: Berhasil memformat data Saham! (10 ticker ditemukan)
+2026-02-22 19:16:47 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/pluang_com_network_capture_1771762607.json ===
+2026-02-22 19:32:50 [INFO] main: === Memulai Auto Web Scraper untuk: https://id.tradingeconomics.com/currencies ===
+2026-02-22 19:32:50 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:32:50 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://id.tradingeconomics.com/currencies
+2026-02-22 19:34:11 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:34:11 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:34:11 [INFO] network_capture: Memulai Network Capture untuk: https://id.tradingeconomics.com/currencies
+2026-02-22 19:34:12 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:35:12 [ERROR] network_capture: Gagal melakukan capture pada https://id.tradingeconomics.com/currencies: Timeout 60000ms exceeded.
+2026-02-22 19:35:13 [INFO] network_capture: HAR tersimpan di: har\https___id_tradingeconomics_com_currencies_1771763651.har
+2026-02-22 19:35:13 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:35:13 [INFO] analysis: Target keyword 'btc' ditemukan di endpoint: https://ep1.adtrafficquality.google/getconfig/sodar?sv=200&tid=gpt&tv=m202602180101&st=env&sjk=8597144138645600
+2026-02-22 19:35:13 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/id_tradingeconomics_com_network_capture_1771763713.json ===
+2026-02-22 19:43:24 [INFO] main: === Memulai Auto Web Scraper untuk: https://id.tradingeconomics.com/currencies ===
+2026-02-22 19:43:24 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-22 19:43:24 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://id.tradingeconomics.com/currencies
+2026-02-22 19:44:35 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-22 19:44:35 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-22 19:44:35 [INFO] network_capture: Memulai Network Capture untuk: https://id.tradingeconomics.com/currencies
+2026-02-22 19:44:36 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-22 19:45:36 [ERROR] network_capture: Gagal melakukan capture pada https://id.tradingeconomics.com/currencies: Timeout 60000ms exceeded.
+2026-02-22 19:45:37 [INFO] network_capture: HAR tersimpan di: har\https___id_tradingeconomics_com_currencies_1771764275.har
+2026-02-22 19:45:37 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-22 19:45:37 [INFO] analysis: Target keyword 'btc' ditemukan di endpoint: https://ep1.adtrafficquality.google/getconfig/sodar?sv=200&tid=gpt&tv=m202602120101&st=env&sjk=6704057025916124
+2026-02-22 19:45:37 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/id_tradingeconomics_com_network_capture_1771764337.json ===
+2026-02-23 18:50:16 [INFO] main: === Memulai Auto Web Scraper untuk: https://www.kompas.com/ ===
+2026-02-23 18:50:16 [INFO] main: -> [Layer 1] Memulai Direct Request
+2026-02-23 18:50:16 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://www.kompas.com/
+2026-02-23 18:50:19 [INFO] direct_request: Direct Request tidak menemukan data JSON pada endpoint umum.
+2026-02-23 18:50:19 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni
+2026-02-23 18:50:19 [INFO] network_capture: Memulai Network Capture untuk: https://www.kompas.com/
+2026-02-23 18:50:25 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-23 18:51:25 [ERROR] network_capture: Gagal melakukan capture pada https://www.kompas.com/: Timeout 60000ms exceeded.
+2026-02-23 18:51:26 [INFO] network_capture: HAR tersimpan di: har\https___www_kompas_com__1771847419.har
+2026-02-23 18:51:26 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://recommendation.kgdata.dev/rec/kompascom/api/v2/recommendation/item-user
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://cdn.jsdelivr.net/gh/prebid/currency-file@1/latest.json?date=20260223
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://web.hb.ad.cpe.dotomi.com/cvx/client/hb/ortb/25
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://recommendation.kgdata.dev/chrono/v1/air-quality
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'harga' ditemukan di endpoint: https://play.kompas.com/api/ramadhan2026/harga_emas
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://api.bigdatacloud.net/data/client-info
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'price' ditemukan di endpoint: https://aiml.oval.id/affiliate/product?total=5&catid=&is_popular=true&page_url=https%3A%2F%2Fwww.kompas.com%2F&min_price=20000&tags=6%2C970x250%2CGeneral%2Cundefined
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://mab.chartbeat.com/mab_strategy/headline_testing/get_strategy/?host=kompas.com&domain=kompas.com&path=%2F
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://tracker.oval.id/74880235-2484-4402-922f-202c2773b82e/v1/event-tracker
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://accounts.tokopedia.com/upkiejson
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://tracker.oval.id/74880235-2484-4402-922f-202c2773b82e/v1/event-tracker
+2026-02-23 18:51:26 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://tracker.oval.id/74880235-2484-4402-922f-202c2773b82e/v1/event-tracker
+2026-02-23 18:51:26 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/www_kompas_com_network_capture_1771847486.json ===

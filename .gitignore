@@ -1,0 +1,43 @@
+# ─── Python cache ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ─── Virtual Environment ────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ─── Hasil scraping (file besar, jangan push ke GitHub) ─────
+hasil_scrape/*.json
+hasil_scrape/pdf_output/
+
+# ─── Kecuali file template JSON kosong ──────────────────────
+!hasil_scrape/.gitkeep
+
+# ─── API data statis Vercel ─────────────────────────────────
+api/data/*.json
+!api/data/.gitkeep
+
+# ─── File test ──────────────────────────────────────────────
+test_input.docx
+test_convert_api.py
+
+# ─── Credentials & secrets ──────────────────────────────────
+.env
+*.env
+config/secrets.py
+
+# ─── OS & Editor ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── Playwright browser binaries ────────────────────────────
+ms-playwright/
