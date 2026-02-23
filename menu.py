@@ -991,23 +991,21 @@ def run_api_server():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SCRAPE DRAKORKITA (DRAMA / FILM)
+# SCRAPE FILM (Menu 9)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_scrape_drakorkita():
-    """Scrape drama/film dari DrakorKita."""
-    print_header("🎬 SCRAPE DRAKORKITA (DRAMA / FILM)")
+def _run_drakorkita_submenu():
+    """Sub-menu DrakorKita."""
+    print(f"""
+  {Fore.CYAN}Menu DrakorKita:{Style.RESET_ALL}
 
-    print(f"""  {Fore.CYAN}Menu Scraping DrakorKita:{Style.RESET_ALL}
-
-    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — Scrape 1 judul drama/film (masukkan URL detail)
-    {Fore.YELLOW}2{Style.RESET_ALL}. Full Scrape — Crawl & scrape semua judul (bisa dibatasi)
-    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Series — Hanya series (ongoing/complete)
-    {Fore.YELLOW}4{Style.RESET_ALL}. Filter Movie — Hanya film/movie
-    {Fore.YELLOW}5{Style.RESET_ALL}. Filter Genre — Pilih genre tertentu
+    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — 1 judul (masukkan URL)
+    {Fore.YELLOW}2{Style.RESET_ALL}. Full Scrape — Crawl semua judul (atur limit)
+    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Series — Ongoing / Complete
+    {Fore.YELLOW}4{Style.RESET_ALL}. Filter Movie — Hanya film
+    {Fore.YELLOW}5{Style.RESET_ALL}. Filter Genre
     {Fore.YELLOW}0{Style.RESET_ALL}. Kembali
 """)
-
     choice = ask("Pilihan (0-5)", "1")
 
     try:
@@ -1019,12 +1017,10 @@ def run_scrape_drakorkita():
 
     if choice == "0":
         return
-
     elif choice == "1":
-        url = ask("URL drama/film (contoh: https://drakorkita3.nicewap.sbs/detail/positively-yours-2026-eot/)")
+        url = ask("URL detail drama (contoh: https://drakorkita3.nicewap.sbs/detail/...)")
         if not url:
             err("URL kosong!")
-            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
         with_eps = ask("Scrape video embed per episode? (y/n)", "n").lower() == "y"
         print()
@@ -1037,18 +1033,16 @@ def run_scrape_drakorkita():
             if result.get("sinopsis"):
                 head("Sinopsis:")
                 print(f"    {result['sinopsis'][:200]}...")
-
     elif choice == "2":
         max_pages = ask("Max halaman listing (kosong = semua, ~400 halaman)", "")
         max_details = ask("Max judul yang di-detail (kosong = semua)", "")
-        with_eps = ask("Scrape video embed per episode? Lebih lambat. (y/n)", "n").lower() == "y"
+        with_eps = ask("Scrape video embed per episode? (y/n)", "n").lower() == "y"
         print()
         run_full_scrape(
             max_pages=int(max_pages) if max_pages else None,
             max_details=int(max_details) if max_details else None,
             scrape_episodes=with_eps,
         )
-
     elif choice == "3":
         status = ask("Status (1=Ongoing, 2=Complete)", "1")
         s = "returning series" if status == "1" else "ended"
@@ -1060,7 +1054,6 @@ def run_scrape_drakorkita():
             max_details=int(max_details) if max_details else None,
             filter_params={"status": s},
         )
-
     elif choice == "4":
         max_pages = ask("Max halaman (kosong = semua)", "5")
         max_details = ask("Max judul di-detail (kosong = semua)", "")
@@ -1070,7 +1063,6 @@ def run_scrape_drakorkita():
             max_details=int(max_details) if max_details else None,
             filter_params={"media_type": "movie"},
         )
-
     elif choice == "5":
         genres = ["Action", "Adventure", "Comedy", "Crime", "Drama", "Family",
                   "Fantasy", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller"]
@@ -1082,7 +1074,6 @@ def run_scrape_drakorkita():
             genre = genres[int(g_choice) - 1]
         except (ValueError, IndexError):
             err("Pilihan tidak valid.")
-            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
         max_pages = ask("Max halaman (kosong = semua)", "5")
         max_details = ask("Max judul di-detail (kosong = semua)", "")
@@ -1092,6 +1083,50 @@ def run_scrape_drakorkita():
             max_details=int(max_details) if max_details else None,
             filter_params={"genre": genre},
         )
+
+
+def _run_custom_film_scrape():
+    """Scrape film/drama dari URL lain (bukan DrakorKita)."""
+    url = ask("Masukkan URL situs film/drama")
+    if not url:
+        err("URL kosong!")
+        return
+
+    name = ask("Nama sumber (kosong = otomatis dari domain)", "")
+    if not name:
+        match = re.search(r"(?:https?://)?(?:www\.)?([^/]+)", url)
+        name = match.group(1).replace(".", "_").title() if match else "Custom_Film"
+
+    print()
+    info(f"Scraping film dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
+    info(f"Nama sumber: {name}")
+    print()
+
+    _scrape_single_url(f"Film_{name}", url)
+
+
+def run_scrape_film():
+    """Menu utama Scrape Film."""
+    print_header("🎬 SCRAPE FILM / DRAMA / SERIES")
+
+    print(f"""  {Fore.CYAN}Pilih sumber film:{Style.RESET_ALL}
+
+    {Fore.YELLOW}1{Style.RESET_ALL}. 🎭  DrakorKita — Drama Korea, Jepang, China, dll
+                 (drakorkita3.nicewap.sbs — 11.779 judul)
+    {Fore.YELLOW}2{Style.RESET_ALL}. 🌐  Link Lainnya — Scrape dari URL situs film lain
+    {Fore.YELLOW}0{Style.RESET_ALL}. 🔙  Kembali
+""")
+
+    choice = ask("Pilihan (0-2)", "1")
+
+    if choice == "0":
+        return
+    elif choice == "1":
+        _run_drakorkita_submenu()
+    elif choice == "2":
+        _run_custom_film_scrape()
+    else:
+        err("Pilihan tidak valid.")
 
     input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
@@ -1118,90 +1153,214 @@ def _is_article_url(url: str) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_view_results():
-    """Lihat dan jelajahi hasil scraping yang tersimpan."""
-    while True:
-        print_header("📂 LIHAT HASIL SCRAPE")
+    """Lihat dan jelajahi hasil scraping yang tersimpan — auto-kategorisasi."""
 
-        files = sorted(glob.glob(os.path.join(OUTPUT_DIR, "*.json")),
-                       key=os.path.getmtime, reverse=True)
+    # ── Definisi kategori berdasarkan pola nama file / folder ──
+    CATEGORIES = {
+        "🎬 Film / Drama / Series": {
+            "patterns": ["drakorkita", "film_", "drama", "movie", "series"],
+            "subdir": "drakorkita",
+        },
+        "🥇 Harga Emas": {
+            "patterns": ["emas", "gold", "galeri24", "logam_mulia"],
+        },
+        "₿  Cryptocurrency": {
+            "patterns": ["crypto", "coinmarketcap", "bitcoin", "coin"],
+        },
+        "📰 Berita / News": {
+            "patterns": ["kompas", "news", "berita", "artikel"],
+        },
+        "📈 Saham / Stocks": {
+            "patterns": ["saham", "stock", "pluang"],
+        },
+        "💱 Mata Uang / Currency": {
+            "patterns": ["trading", "currency", "forex", "kurs"],
+        },
+        "📁 Lainnya": {
+            "patterns": [],  # catch-all
+        },
+    }
 
-        if not files:
-            err("Belum ada file hasil scrape.")
-            info(f"Jalankan scraper terlebih dahulu untuk membuat output.")
-            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
-            return
+    def _categorize_file(filepath):
+        """Tentukan kategori file berdasarkan nama."""
+        fname = os.path.basename(filepath).lower()
+        parent = os.path.dirname(filepath).lower()
+        fullpath = os.path.join(parent, fname)
 
-        print(f"  {Fore.CYAN}Ditemukan {len(files)} file hasil scrape:{Style.RESET_ALL}\n")
-
-        # Tampilkan daftar file
-        page_size = 15
-        for i, fp in enumerate(files[:page_size], 1):
-            fname = os.path.basename(fp)
-            sz = round(os.path.getsize(fp) / 1024, 1)
-            ts = os.path.getmtime(fp)
-            dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-            print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. {fname[:55]:55}  {Fore.CYAN}{sz:>8} KB{Style.RESET_ALL}  {dt}")
-
-        if len(files) > page_size:
-            print(f"\n    {Fore.YELLOW}...{Style.RESET_ALL} dan {len(files) - page_size} file lainnya")
-
-        print(f"\n    {Fore.YELLOW} d{Style.RESET_ALL}. Hapus file tertentu")
-        print(f"    {Fore.YELLOW} 0{Style.RESET_ALL}. Kembali ke menu utama\n")
-
-        choice = ask(f"Pilih file (1-{min(len(files), page_size)}, d, atau 0)", "0")
-
-        if choice == "0":
-            return
-
-        if choice.lower() == "d":
-            del_choice = ask(f"Nomor file yang akan dihapus (1-{min(len(files), page_size)})")
-            try:
-                del_idx = int(del_choice) - 1
-                if 0 <= del_idx < len(files):
-                    fname = os.path.basename(files[del_idx])
-                    confirm = ask(f"Yakin hapus {fname}? (y/n)", "n")
-                    if confirm.lower() == "y":
-                        os.remove(files[del_idx])
-                        ok(f"File {fname} berhasil dihapus!")
-                        time.sleep(1)
-                    continue
-            except ValueError:
-                err("Pilihan tidak valid.")
-                time.sleep(1)
+        for cat_name, cat_info in CATEGORIES.items():
+            if cat_name == "📁 Lainnya":
                 continue
+            # Cek subdir
+            subdir = cat_info.get("subdir", "")
+            if subdir and subdir in fullpath:
+                return cat_name
+            # Cek patterns
+            for pat in cat_info.get("patterns", []):
+                if pat in fname or pat in parent:
+                    return cat_name
+        return "📁 Lainnya"
 
-        try:
-            idx = int(choice) - 1
-        except ValueError:
-            err("Pilihan tidak valid.")
-            time.sleep(1)
-            continue
+    def _collect_all_files():
+        """Kumpulkan semua JSON dari OUTPUT_DIR dan subdirektori."""
+        all_files = []
+        for root, dirs, files in os.walk(OUTPUT_DIR):
+            for f in files:
+                if f.endswith(".json") and not f.startswith("."):
+                    all_files.append(os.path.join(root, f))
+        return sorted(all_files, key=os.path.getmtime, reverse=True)
 
-        if idx < 0 or idx >= min(len(files), page_size):
-            err("Nomor file tidak valid.")
-            time.sleep(1)
-            continue
+    def _show_drama_detail(data, filepath):
+        """Tampilkan detail lengkap film/drama."""
+        # Cek apakah ini file listing atau full detail
+        dramas = data.get("dramas", [])
+        if not dramas and isinstance(data, dict):
+            # Mungkin single drama
+            if data.get("title"):
+                dramas = [data]
 
-        # ── Tampilkan isi file ──
-        filepath = files[idx]
-        fname = os.path.basename(filepath)
-        clear()
-        print_header(f"📄 {fname}")
+        if not dramas:
+            # Tampilkan raw
+            head("Data:")
+            print(f"    {json.dumps(data, indent=2, ensure_ascii=False)[:2000]}")
+            return
 
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            err(f"Gagal membaca file: {e}")
-            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
-            continue
-
-        sz = round(os.path.getsize(filepath) / 1024, 1)
-        info(f"Ukuran: {sz} KB")
-        info(f"Path: {os.path.abspath(filepath)}")
+        head(f"Total: {len(dramas)} judul")
         print()
 
-        # ── Metadata ──
+        page = 0
+        per_page = 10
+        while True:
+            start = page * per_page
+            end = min(start + per_page, len(dramas))
+
+            for i, d in enumerate(dramas[start:end], start + 1):
+                title = d.get("title", "?")
+                eps = d.get("total_episodes", 0)
+                genres = ", ".join(d.get("genres", []))
+                status = d.get("status", "")
+                ep_embeds = d.get("episode_embeds", [])
+                video_count = sum(1 for e in ep_embeds if e.get("video_embed"))
+
+                status_icon = "🟢" if status == "Ongoing" else "🔵" if status == "Complete" else "⚪"
+
+                print(f"  {Fore.YELLOW}{i:>4}{Style.RESET_ALL}. {status_icon} {Fore.WHITE}{Style.BRIGHT}{title}{Style.RESET_ALL}")
+                print(f"        {Fore.CYAN}Genre:{Style.RESET_ALL} {genres or '-'}")
+                print(f"        {Fore.CYAN}Status:{Style.RESET_ALL} {status or '-'}  |  {Fore.CYAN}Episode:{Style.RESET_ALL} {eps}")
+
+                if video_count:
+                    print(f"        {Fore.GREEN}✓ {video_count} video embed tersedia{Style.RESET_ALL}")
+
+                cast = d.get("cast", [])
+                if cast:
+                    print(f"        {Fore.CYAN}Cast:{Style.RESET_ALL} {', '.join(cast[:3])}" +
+                          (f" +{len(cast)-3} lagi" if len(cast) > 3 else ""))
+                print()
+
+            # Navigasi
+            total_pages = (len(dramas) + per_page - 1) // per_page
+            print(f"  {Fore.CYAN}Halaman {page+1}/{total_pages}{Style.RESET_ALL}  |  ", end="")
+
+            nav_opts = []
+            if page > 0:
+                nav_opts.append(f"{Fore.YELLOW}p{Style.RESET_ALL}=sebelum")
+            if end < len(dramas):
+                nav_opts.append(f"{Fore.YELLOW}n{Style.RESET_ALL}=berikut")
+            nav_opts.append(f"{Fore.YELLOW}[nomor]{Style.RESET_ALL}=detail")
+            nav_opts.append(f"{Fore.YELLOW}0{Style.RESET_ALL}=kembali")
+            print("  ".join(nav_opts))
+
+            nav = ask("Navigasi", "0")
+
+            if nav == "0":
+                return
+            elif nav.lower() == "n" and end < len(dramas):
+                page += 1
+                clear()
+                print_header("🎬 Daftar Film/Drama")
+                continue
+            elif nav.lower() == "p" and page > 0:
+                page -= 1
+                clear()
+                print_header("🎬 Daftar Film/Drama")
+                continue
+            elif nav.isdigit():
+                idx = int(nav) - 1
+                if 0 <= idx < len(dramas):
+                    drama = dramas[idx]
+                    clear()
+                    print_header(f"🎬 {drama.get('title', '?')}")
+
+                    for k in ["alternative_title", "type", "status", "season",
+                              "episode_count", "country", "first_air_date",
+                              "video_length", "score", "total_ratings", "views", "posted_on"]:
+                        v = drama.get(k, "")
+                        if v:
+                            if isinstance(v, list):
+                                v = ", ".join(v)
+                            label = k.replace("_", " ").title()
+                            print(f"  {Fore.CYAN}{label}:{Style.RESET_ALL} {v}")
+
+                    genres = drama.get("genres", [])
+                    if genres:
+                        print(f"  {Fore.CYAN}Genre:{Style.RESET_ALL} {', '.join(genres)}")
+
+                    directors = drama.get("directors", [])
+                    if directors:
+                        print(f"  {Fore.CYAN}Director:{Style.RESET_ALL} {', '.join(directors)}")
+
+                    cast = drama.get("cast", [])
+                    if cast:
+                        print(f"\n  {Fore.CYAN}Cast:{Style.RESET_ALL}")
+                        for c in cast:
+                            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {c}")
+
+                    sinopsis = drama.get("sinopsis", "")
+                    if sinopsis:
+                        print(f"\n  {Fore.CYAN}Sinopsis:{Style.RESET_ALL}")
+                        print(f"    {sinopsis[:400]}")
+
+                    poster = drama.get("poster", "")
+                    if poster:
+                        print(f"\n  {Fore.CYAN}Poster:{Style.RESET_ALL} {poster}")
+
+                    # Episode embeds
+                    ep_embeds = drama.get("episode_embeds", [])
+                    episodes = drama.get("episodes", [])
+                    if ep_embeds:
+                        print(f"\n  {Fore.CYAN}Video Embed per Episode:{Style.RESET_ALL}")
+                        for ep in ep_embeds:
+                            ep_num = ep.get("episode", "?")
+                            embed = ep.get("video_embed", "")
+                            icon = f"{Fore.GREEN}✓{Style.RESET_ALL}" if embed else f"{Fore.RED}✗{Style.RESET_ALL}"
+                            print(f"    {icon} Ep {ep_num}: {Fore.BLUE}{embed[:70]}{Style.RESET_ALL}" if embed else
+                                  f"    {icon} Ep {ep_num}: -")
+                    elif episodes:
+                        print(f"\n  {Fore.CYAN}Daftar Episode ({len(episodes)}):{Style.RESET_ALL}")
+                        for ep in episodes[:20]:
+                            print(f"    → Episode {ep.get('episode', '?')}")
+                        if len(episodes) > 20:
+                            print(f"    {Fore.YELLOW}... +{len(episodes)-20} episode lagi{Style.RESET_ALL}")
+
+                    # Download links
+                    dl = drama.get("download_links", [])
+                    if dl:
+                        print(f"\n  {Fore.CYAN}Download:{Style.RESET_ALL}")
+                        for link in dl:
+                            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {link.get('text', 'DOWNLOAD')}: {link.get('url', '')}")
+
+                    input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke daftar]{Style.RESET_ALL}")
+                    clear()
+                    print_header("🎬 Daftar Film/Drama")
+
+    def _show_generic_content(data, filepath):
+        """Tampilkan konten generik (emas, crypto, berita, dll)."""
+        fname = os.path.basename(filepath)
+        sz = round(os.path.getsize(filepath) / 1024, 1)
+        info(f"Ukuran: {sz} KB")
+        info(f"Path: {filepath}")
+        print()
+
+        # Metadata
         meta = data.get("metadata", {})
         if meta:
             head("Metadata:")
@@ -1209,16 +1368,7 @@ def run_view_results():
                 print(f"    {Fore.CYAN}{k}{Style.RESET_ALL}: {v}")
             print()
 
-        # ── Data utama ──
         inner = data.get("data", data)
-
-        technique = ""
-        if isinstance(inner, dict):
-            technique = inner.get("technique", meta.get("technique_used", ""))
-
-        if technique:
-            info(f"Teknik: {Fore.GREEN}{technique}{Style.RESET_ALL}")
-            print()
 
         # Tabel
         tables = []
@@ -1226,19 +1376,55 @@ def run_view_results():
             tables = inner.get("tables", [])
         if tables:
             head(f"Tabel ({len(tables)} ditemukan):")
-            for ti, tbl in enumerate(tables[:3], 1):
+            for ti, tbl in enumerate(tables[:5], 1):
                 headers = tbl.get("headers", [])
                 rows = tbl.get("rows", [])
                 if headers:
-                    print(f"\n    {Fore.YELLOW}Tabel {ti}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:6])}")
-                for row in rows[:8]:
+                    print(f"\n    {Fore.YELLOW}Tabel {ti}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:8])}")
+                for row in rows[:15]:
                     if isinstance(row, dict):
-                        vals = " | ".join(f"{v}" for v in list(row.values())[:6])
+                        vals = " | ".join(f"{v}" for v in list(row.values())[:8])
                     else:
-                        vals = " | ".join(str(c) for c in row[:6])
+                        vals = " | ".join(str(c) for c in row[:8])
                     print(f"      {Fore.CYAN}→{Style.RESET_ALL} {vals}")
-                if len(rows) > 8:
-                    print(f"      {Fore.YELLOW}... +{len(rows)-8} baris lagi{Style.RESET_ALL}")
+                if len(rows) > 15:
+                    print(f"      {Fore.YELLOW}... +{len(rows)-15} baris lagi{Style.RESET_ALL}")
+            print()
+
+        # Articles / Berita
+        articles = []
+        if isinstance(inner, dict):
+            articles = inner.get("articles", [])
+        if not articles:
+            articles = data.get("articles", [])
+        if articles:
+            head(f"Artikel/Berita ({len(articles)} item):")
+            for a in articles[:15]:
+                judul = a.get("judul", a.get("title", ""))[:80]
+                url_art = a.get("url", "")[:70]
+                tgl = a.get("tanggal", a.get("date", ""))
+                if judul:
+                    print(f"    {Fore.CYAN}→{Style.RESET_ALL} {judul}")
+                    if tgl:
+                        print(f"      {Fore.YELLOW}{tgl}{Style.RESET_ALL}")
+                    if url_art:
+                        print(f"      {Fore.BLUE}{url_art}{Style.RESET_ALL}")
+            if len(articles) > 15:
+                print(f"    {Fore.YELLOW}... +{len(articles)-15} item lagi{Style.RESET_ALL}")
+            print()
+
+        # Stocks
+        stocks = data.get("stocks", [])
+        if stocks:
+            head(f"Stocks ({len(stocks)} ticker):")
+            for s in stocks[:15]:
+                if isinstance(s, dict):
+                    sym = s.get("symbol", s.get("ticker", "?"))
+                    name_ = s.get("name", s.get("companyName", ""))
+                    price = s.get("price", s.get("lastPrice", "?"))
+                    print(f"    {Fore.GREEN}{sym:>6}{Style.RESET_ALL}  {name_[:40]:40}  ${price}")
+            if len(stocks) > 15:
+                print(f"    {Fore.YELLOW}... +{len(stocks)-15} ticker lagi{Style.RESET_ALL}")
             print()
 
         # Captured APIs
@@ -1254,61 +1440,138 @@ def run_view_results():
                 body_len = len(body) if isinstance(body, (list, dict)) else "-"
                 print(f"    {Fore.GREEN}→{Style.RESET_ALL} {short}")
                 print(f"      {Fore.CYAN}Type: {body_type}, Items: {body_len}{Style.RESET_ALL}")
-            if len(apis) > 10:
-                print(f"    {Fore.YELLOW}... +{len(apis)-10} endpoint lagi{Style.RESET_ALL}")
             print()
 
-        # SSR Data
-        ssr = None
-        if isinstance(inner, dict):
-            ssr = inner.get("ssr_data")
-        if ssr and isinstance(ssr, dict):
-            head("SSR Data (Next.js / Nuxt):")
-            props = ssr.get("props", {}).get("pageProps", {})
-            if props:
-                for k in list(props.keys())[:10]:
-                    v = props[k]
-                    if isinstance(v, (dict, list)):
-                        vlen = len(v)
-                        print(f"    {Fore.GREEN}{k}{Style.RESET_ALL}: {type(v).__name__}({vlen} item)")
-                    else:
-                        print(f"    {Fore.GREEN}{k}{Style.RESET_ALL}: {str(v)[:80]}")
-            print()
+    # ══════════════════════════════════════════════════════════════
+    # Main loop
+    # ══════════════════════════════════════════════════════════════
 
-        # Articles
-        articles = []
-        if isinstance(inner, dict):
-            articles = inner.get("articles", [])
-        if not articles:
-            articles = data.get("articles", [])
-        if articles:
-            head(f"Artikel/Link ({len(articles)} item):")
-            for a in articles[:10]:
-                judul = a.get("judul", a.get("title", ""))[:70]
-                url_art = a.get("url", "")[:60]
-                if judul:
-                    print(f"    {Fore.CYAN}→{Style.RESET_ALL} {judul}")
-                    if url_art:
-                        print(f"      {Fore.BLUE}{url_art}{Style.RESET_ALL}")
-            if len(articles) > 10:
-                print(f"    {Fore.YELLOW}... +{len(articles)-10} item lagi{Style.RESET_ALL}")
-            print()
+    while True:
+        clear()
+        print_header("📂 LIHAT HASIL SCRAPE")
 
-        # Stocks
-        stocks = data.get("stocks", [])
-        if stocks:
-            head(f"Stocks ({len(stocks)} ticker):")
-            for s in stocks[:10]:
-                if isinstance(s, dict):
-                    sym = s.get("symbol", s.get("ticker", "?"))
-                    name_ = s.get("name", s.get("companyName", ""))
-                    price = s.get("price", s.get("lastPrice", "?"))
-                    print(f"    {Fore.GREEN}{sym:>6}{Style.RESET_ALL}  {name_[:40]:40}  ${price}")
-            if len(stocks) > 10:
-                print(f"    {Fore.YELLOW}... +{len(stocks)-10} ticker lagi{Style.RESET_ALL}")
-            print()
+        all_files = _collect_all_files()
+        if not all_files:
+            err("Belum ada file hasil scrape.")
+            info("Jalankan scraper terlebih dahulu.")
+            input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+            return
 
-        input(f"  {Fore.YELLOW}[Enter untuk kembali ke daftar file]{Style.RESET_ALL}")
+        # Kategorisasi
+        categorized = {}
+        for cat_name in CATEGORIES:
+            categorized[cat_name] = []
+        for fp in all_files:
+            cat = _categorize_file(fp)
+            categorized[cat].append(fp)
+
+        # Tampilkan kategori
+        total_files = len(all_files)
+        total_size = sum(os.path.getsize(f) for f in all_files)
+        print(f"  {Fore.CYAN}Total: {total_files} file ({round(total_size/1024/1024, 1)} MB){Style.RESET_ALL}\n")
+
+        cat_keys = [k for k in CATEGORIES if categorized.get(k)]
+        for i, cat_name in enumerate(cat_keys, 1):
+            files = categorized[cat_name]
+            cat_size = sum(os.path.getsize(f) for f in files)
+            sz_str = f"{round(cat_size/1024, 1)} KB" if cat_size < 1024*1024 else f"{round(cat_size/1024/1024, 1)} MB"
+            print(f"    {Fore.YELLOW}{i}{Style.RESET_ALL}  {cat_name}  {Fore.CYAN}({len(files)} file, {sz_str}){Style.RESET_ALL}")
+
+        print(f"\n    {Fore.YELLOW}0{Style.RESET_ALL}  🔙 Kembali ke menu utama\n")
+
+        choice = ask(f"Pilih kategori (0-{len(cat_keys)})", "0")
+
+        if choice == "0":
+            return
+
+        try:
+            cat_idx = int(choice) - 1
+            if cat_idx < 0 or cat_idx >= len(cat_keys):
+                raise ValueError
+        except ValueError:
+            err("Pilihan tidak valid.")
+            time.sleep(1)
+            continue
+
+        selected_cat = cat_keys[cat_idx]
+        cat_files = categorized[selected_cat]
+
+        # ── Tampilkan file dalam kategori ──
+        while True:
+            clear()
+            print_header(f"📂 {selected_cat}")
+            print(f"  {Fore.CYAN}{len(cat_files)} file tersedia:{Style.RESET_ALL}\n")
+
+            page_size = 20
+            for i, fp in enumerate(cat_files[:page_size], 1):
+                fname = os.path.basename(fp)
+                # Potong nama agar muat
+                display_name = fname[:55] if len(fname) > 55 else fname
+                sz = round(os.path.getsize(fp) / 1024, 1)
+                ts = os.path.getmtime(fp)
+                dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+                print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. {display_name:55}  {Fore.CYAN}{sz:>8} KB{Style.RESET_ALL}  {dt}")
+
+            if len(cat_files) > page_size:
+                print(f"\n    {Fore.YELLOW}...{Style.RESET_ALL} dan {len(cat_files) - page_size} file lainnya")
+
+            print(f"\n    {Fore.YELLOW} d{Style.RESET_ALL}. Hapus file tertentu")
+            print(f"    {Fore.YELLOW} 0{Style.RESET_ALL}. Kembali ke daftar kategori\n")
+
+            file_choice = ask(f"Pilih file (1-{min(len(cat_files), page_size)}, d, atau 0)", "0")
+
+            if file_choice == "0":
+                break
+
+            if file_choice.lower() == "d":
+                del_c = ask(f"Nomor file yang akan dihapus (1-{min(len(cat_files), page_size)})")
+                try:
+                    di = int(del_c) - 1
+                    if 0 <= di < len(cat_files):
+                        fn = os.path.basename(cat_files[di])
+                        if ask(f"Yakin hapus {fn}? (y/n)", "n").lower() == "y":
+                            os.remove(cat_files[di])
+                            cat_files.pop(di)
+                            ok(f"File {fn} berhasil dihapus!")
+                            time.sleep(1)
+                except ValueError:
+                    err("Pilihan tidak valid.")
+                    time.sleep(1)
+                continue
+
+            try:
+                fidx = int(file_choice) - 1
+            except ValueError:
+                err("Pilihan tidak valid.")
+                time.sleep(1)
+                continue
+
+            if fidx < 0 or fidx >= min(len(cat_files), page_size):
+                err("Nomor file tidak valid.")
+                time.sleep(1)
+                continue
+
+            # ── Tampilkan isi file ──
+            filepath = cat_files[fidx]
+            fname = os.path.basename(filepath)
+            clear()
+            print_header(f"📄 {fname}")
+
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception as e:
+                err(f"Gagal membaca file: {e}")
+                input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+                continue
+
+            # Pilih tampilan berdasarkan kategori
+            if selected_cat.startswith("🎬"):
+                _show_drama_detail(data, filepath)
+            else:
+                _show_generic_content(data, filepath)
+
+            input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke daftar file]{Style.RESET_ALL}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1337,7 +1600,7 @@ MENU_OPTIONS = {
     "6": ("⚡  SCRAPE ALL (Semua Data)", run_scrape_all),
     "7": ("🚀  Jalankan API Server",      run_api_server),
     "8": ("📂  Lihat Hasil Scrape",       run_view_results),
-    "9": ("🎬  Scrape DrakorKita",        run_scrape_drakorkita),
+    "9": ("🎬  Scrape Film / Drama",       run_scrape_film),
     "0": ("🚪  Keluar",                   None),
 }
 
