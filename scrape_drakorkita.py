@@ -59,21 +59,45 @@ def fetch_listing_page(page: int = 1, params: dict = None) -> list[dict]:
     soup = BeautifulSoup(resp.text, "html.parser")
     items = []
 
+    # Pattern durasi yang harus di-skip (misalnya "1:09:03", "47:04")
+    duration_pattern = re.compile(r'^\d{1,2}:\d{2}(:\d{2})?$')
+
     # Setiap item ada di <a> dengan href ke /detail/...
     for card in soup.select("a[href*='/detail/']"):
         href = card.get("href", "")
         if "/detail/" not in href:
             continue
 
-        # Cari judul
+        # Extract slug dari URL
+        slug = href.rstrip("/").split("/")[-1]
+
+        # Cari judul — skip teks durasi dan teks pendek
         title_text = ""
-        title_el = card.select_one(".title, h3, h4, .name")
+        title_el = card.select_one(".title, h3, h4, .name, .tt")
         if title_el:
             title_text = title_el.get_text(strip=True)
         else:
-            # Fallback: ambil teks panjang dari card
-            texts = [t.strip() for t in card.stripped_strings if len(t.strip()) > 5]
-            title_text = texts[0] if texts else ""
+            # Fallback: ambil teks yang BUKAN durasi dan cukup panjang
+            for txt in card.stripped_strings:
+                txt = txt.strip()
+                # Skip durasi, angka pendek, rating, episode labels
+                if (len(txt) > 5
+                    and not duration_pattern.match(txt)
+                    and not txt.replace(".", "").isdigit()
+                    and not txt.startswith("E")
+                    and "480p" not in txt and "720p" not in txt
+                    and "1080p" not in txt and "WEB" not in txt):
+                    title_text = txt
+                    break
+
+        # Jika masih tidak ada, buat dari slug
+        if not title_text or duration_pattern.match(title_text):
+            # "positively-yours-2026-eot" → "Positively Yours 2026"
+            parts = slug.split("-")
+            # Hapus suffix random (4 char hash setelah tahun)
+            if len(parts) >= 2 and len(parts[-1]) <= 5 and parts[-1].isalnum():
+                parts = parts[:-1]
+            title_text = " ".join(parts).title()
 
         # Cari poster image
         poster = ""
@@ -83,23 +107,23 @@ def fetch_listing_page(page: int = 1, params: dict = None) -> list[dict]:
             if poster and not poster.startswith("http"):
                 poster = urljoin(BASE_URL, poster)
 
-        # Cari rating
+        # Cari rating — biasanya angka kecil di akhir card
         rating = ""
-        rating_el = card.select_one(".rating, .score, .vote")
-        if rating_el:
-            rating = rating_el.get_text(strip=True)
+        all_texts = [t.strip() for t in card.stripped_strings]
+        for txt in reversed(all_texts):
+            if re.match(r'^\d\.?\d?$', txt) and float(txt) <= 10:
+                rating = txt
+                break
 
         # Cari episode info
         episode_info = ""
-        ep_el = card.select_one(".episode, .ep, .quality")
-        if ep_el:
-            episode_info = ep_el.get_text(strip=True)
+        for txt in all_texts:
+            if txt.startswith("E") and ("/" in txt or "END" in txt):
+                episode_info = txt
+                break
 
         # Normalisasi URL
         detail_url = href if href.startswith("http") else urljoin(BASE_URL, href)
-
-        # Extract slug dari URL
-        slug = href.rstrip("/").split("/")[-1]
 
         if title_text or slug:
             items.append({
@@ -411,8 +435,19 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        log.warning("Playwright tidak tersedia, skip scraping video embed.")
-        return []
+        log.warning("Playwright belum terinstall, mencoba install otomatis...")
+        import subprocess
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"],
+                          check=True, capture_output=True)
+            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"],
+                          check=True, capture_output=True)
+            from playwright.sync_api import sync_playwright
+            log.info("✓ Playwright berhasil diinstall!")
+        except Exception as e:
+            log.error(f"Gagal install Playwright: {e}")
+            log.error("Install manual: pip install playwright && playwright install chromium")
+            return []
 
     episodes_data = []
 
