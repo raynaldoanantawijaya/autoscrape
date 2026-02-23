@@ -635,23 +635,29 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
     total = min(len(all_items), max_details) if max_details else len(all_items)
 
     for i, item in enumerate(all_items[:total], 1):
-        log.info(f"[{i}/{total}] {item['title'] or item['slug']}...")
-        detail = scrape_detail(item["detail_url"])
+        try:
+            log.info(f"[{i}/{total}] {item['title'] or item['slug']}...")
+            detail = scrape_detail(item["detail_url"])
 
-        if detail:
-            # Merge listing info
-            detail["listing_poster"] = item.get("poster", "")
-            detail["listing_rating"] = item.get("rating", "")
-            details.append(detail)
+            if detail:
+                # Merge listing info
+                detail["listing_poster"] = item.get("poster", "")
+                detail["listing_rating"] = item.get("rating", "")
+                details.append(detail)
 
-            # Opsional: Scrape episode embeds
-            if scrape_episodes and detail.get("total_episodes", 0) > 0:
-                log.info(f"  → Scraping {detail['total_episodes']} episode embeds...")
-                ep_data = scrape_episodes_with_browser(item["detail_url"],
-                                                        detail["total_episodes"])
-                detail["episode_embeds"] = ep_data
+                # Opsional: Scrape episode embeds
+                if scrape_episodes and detail.get("total_episodes", 0) > 0:
+                    log.info(f"  → Scraping {detail['total_episodes']} episode embeds...")
+                    ep_data = scrape_episodes_with_browser(item["detail_url"],
+                                                            detail["total_episodes"])
+                    detail["episode_embeds"] = ep_data
 
-        time.sleep(0.3)  # Rate limiting
+            time.sleep(0.3)  # Rate limiting
+
+        except KeyboardInterrupt:
+            log.warning(f"\n⚠ Dihentikan oleh user (Ctrl+C) setelah {len(details)} judul.")
+            log.info("Menyimpan data yang sudah ter-scrape...")
+            break
 
     log.info(f"\n✓ Total {len(details)} detail berhasil di-scrape\n")
 

@@ -1724,7 +1724,11 @@ def main_menu():
         elif choice in MENU_OPTIONS:
             _, handler = MENU_OPTIONS[choice]
             if handler:
-                handler()
+                try:
+                    handler()
+                except KeyboardInterrupt:
+                    print(f"\n\n  {Fore.YELLOW}⚠ Dibatalkan (Ctrl+C){Style.RESET_ALL}")
+                    time.sleep(1)
         else:
             warn("Pilihan tidak valid. Coba lagi.")
             time.sleep(1)
@@ -1735,17 +1739,21 @@ def main_menu():
 # ══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    if "--all" in sys.argv:
-        run_scrape_all()
-    elif "--emas" in sys.argv:
-        run_scrape_emas()
-    elif "--crypto" in sys.argv:
-        run_scrape_crypto()
-    elif "--berita" in sys.argv:
-        run_scrape_berita()
-    elif "--saham" in sys.argv:
-        run_scrape_saham()
-    elif "--api" in sys.argv:
-        run_api_server()
-    else:
-        main_menu()
+    try:
+        if "--all" in sys.argv:
+            run_scrape_all()
+        elif "--emas" in sys.argv:
+            run_scrape_emas()
+        elif "--crypto" in sys.argv:
+            run_scrape_crypto()
+        elif "--berita" in sys.argv:
+            run_scrape_berita()
+        elif "--saham" in sys.argv:
+            run_scrape_saham()
+        elif "--api" in sys.argv:
+            run_api_server()
+        else:
+            main_menu()
+    except KeyboardInterrupt:
+        print(f"\n\n  {Fore.CYAN}Sampai jumpa! 👋{Style.RESET_ALL}\n")
+        sys.exit(0)
