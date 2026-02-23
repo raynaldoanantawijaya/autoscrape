@@ -297,13 +297,15 @@ def scrape_detail(detail_url: str) -> dict | None:
                         break
                 break
 
-    # ── Video embed (jika ada iframe langsung di halaman) ──
+    # ── Video embed via AJAX (iframe is JS-rendered, not in static HTML) ──
     video_embed = ""
-    iframe = soup.select_one(".gmr-embed-responsive iframe, .video-embed iframe, iframe")
-    if iframe:
-        src = iframe.get("src") or iframe.get("data-src") or ""
-        if src and "ad" not in src.lower() and "klik" not in src.lower():
-            video_embed = src
+    video_servers = []
+    post_id = _extract_post_id(soup)
+    if post_id:
+        embeds = _fetch_video_embeds_via_ajax(post_id, detail_url)
+        if embeds:
+            video_embed = embeds[0]["url"]
+            video_servers = embeds
 
     is_tv = "/tv/" in detail_url or len(episodes) > 0
 
@@ -327,6 +329,7 @@ def scrape_detail(detail_url: str) -> dict | None:
         "episodes": episodes,
         "download_links": download_links,
         "video_embed": video_embed,
+        "video_servers": video_servers,
     }
 
 
@@ -334,12 +337,67 @@ def scrape_detail(detail_url: str) -> dict | None:
 # LANGKAH 3: Scrape episode video/download links
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _extract_post_id(soup) -> str:
+    """Ekstrak post ID dari class body (postid-XXXXX)."""
+    body = soup.select_one("body")
+    if body:
+        classes = body.get("class", [])
+        for cls in classes:
+            if cls.startswith("postid-"):
+                return cls.replace("postid-", "")
+    # Fallback: cari dari article class
+    article = soup.select_one("article")
+    if article:
+        art_id = article.get("id", "")
+        m = re.search(r'post-(\d+)', art_id)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def _fetch_video_embeds_via_ajax(post_id: str, page_url: str) -> list[dict]:
+    """Ambil video embed URLs via WordPress AJAX endpoint."""
+    embeds = []
+    if not post_id:
+        return embeds
+
+    ajax_url = f"{BASE_URL}/wp-admin/admin-ajax.php"
+
+    for tab in ["p1", "p2", "p3", "p4"]:
+        try:
+            resp = SESSION.post(ajax_url, data={
+                "action": "muvipro_player_content",
+                "tab": tab,
+                "post_id": post_id,
+            }, headers={
+                **HEADERS,
+                "Referer": page_url,
+                "X-Requested-With": "XMLHttpRequest",
+            }, timeout=10)
+
+            if resp.status_code == 200 and resp.text.strip():
+                # Parse iframe src dari response HTML
+                frag = BeautifulSoup(resp.text, "html.parser")
+                iframe = frag.select_one("iframe")
+                if iframe:
+                    src = iframe.get("src") or iframe.get("SRC") or ""
+                    if src and "ad" not in src.lower() and "klik" not in src.lower():
+                        embeds.append({
+                            "server": tab,
+                            "url": src,
+                        })
+        except Exception:
+            pass
+
+    return embeds
+
+
 def scrape_episode_page(ep_url: str) -> dict:
-    """Scrape halaman episode untuk ambil video embed dan download links."""
+    """Scrape halaman episode: video embed via AJAX + download links."""
     result = {
         "url": ep_url,
         "video_embed": "",
-        "servers": [],
+        "video_servers": [],
         "download_links": [],
     }
 
@@ -352,28 +410,15 @@ def scrape_episode_page(ep_url: str) -> dict:
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # Video iframe
-    iframe = soup.select_one(".gmr-embed-responsive iframe")
-    if not iframe:
-        # Fallback: cari iframe manapun yang bukan iklan
-        for ifr in soup.select("iframe"):
-            src = ifr.get("src", "") or ifr.get("data-src", "")
-            if src and "ad" not in src.lower() and "klik" not in src.lower() and "google" not in src.lower():
-                iframe = ifr
-                break
-    if iframe:
-        src = iframe.get("src") or iframe.get("data-src") or ""
-        if src and "ad" not in src.lower() and "klik" not in src.lower():
-            result["video_embed"] = src
+    # ── Video embed via AJAX ──
+    post_id = _extract_post_id(soup)
+    if post_id:
+        embeds = _fetch_video_embeds_via_ajax(post_id, ep_url)
+        if embeds:
+            result["video_embed"] = embeds[0]["url"]  # Server utama
+            result["video_servers"] = embeds
 
-    # Server options
-    for srv in soup.select('a[id^="player"], .gmr-server-wrap a'):
-        srv_name = srv.get_text(strip=True)
-        srv_data = srv.get("data-em", "") or srv.get("href", "")
-        if srv_name:
-            result["servers"].append({"name": srv_name, "data": srv_data})
-
-    # Download links — cek beberapa lokasi
+    # ── Download links — cek beberapa lokasi ──
     dl_links_found = []
 
     # 1) #download section
@@ -409,7 +454,7 @@ def scrape_episode_page(ep_url: str) -> dict:
                         break
                 break
 
-    # 4) Last resort: cari link ke kagefiles/imaxstreams/peytonepre/iplayerhls
+    # 4) Last resort: direct provider links
     if not dl_links_found:
         for a in soup.select('a[href*="kagefiles"], a[href*="imaxstreams"], a[href*="peytonepre"], a[href*="iplayerhls"]'):
             href = a.get("href", "")
