@@ -422,12 +422,12 @@ def technique_ssr_parser(url: str) -> dict | None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_emas():
-    """Scrape harga emas dari Galeri24 dan harga-emas.org."""
+    """Scrape harga emas dari berbagai sumber menggunakan teknik langsung."""
     print_header("① SCRAPE HARGA EMAS")
 
     sources = [
-        ("Galeri24",        "https://galeri24.co.id/"),
-        ("Harga-Emas.org",  "https://harga-emas.org/"),
+        ("Galeri24",         "https://galeri24.co.id/"),
+        ("Harga-Emas.org",   "https://harga-emas.org/"),
         ("Antam Logam Mulia","https://www.logammulia.com/id/harga-emas-hari-ini"),
     ]
 
@@ -446,40 +446,69 @@ def run_scrape_emas():
     for name, url in sources:
         info(f"Scraping [{name}]...")
         try:
-            # Coba via main scraper yang sudah ada
-            result = subprocess.run(
-                [sys.executable, "main.py", url],
-                capture_output=True, text=True, timeout=90,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
-            # Cari file output terbaru
-            files = sorted(
-                glob.glob(os.path.join(OUTPUT_DIR, f"*{_domain(url)}*")),
-                key=os.path.getmtime, reverse=True
-            )
-            if files:
-                with open(files[0], encoding="utf-8") as f:
-                    data = json.load(f)
-                gold = data.get("data", {}).get("structured_gold_prices", {})
-                if gold:
-                    all_results[name] = gold
-                    ok(f"[{name}] {len(gold)} provider ditemukan")
-                else:
-                    warn(f"[{name}] structured_gold_prices tidak ditemukan")
-            else:
-                warn(f"[{name}] Output file tidak ditemukan")
+            # ── Langkah 1: Coba Direct Request (cepat, tanpa browser) ──
+            info(f"  → Teknik ①: Direct Request + BeautifulSoup...")
+            data = technique_direct_request(url, category="emas")
+
+            tables = data.get("tables", []) if data else []
+            inline = data.get("inline_json", []) if data else []
+
+            if tables:
+                ok(f"  [{name}] {len(tables)} tabel ditemukan via Direct Request")
+                all_results[name] = {
+                    "technique": "direct_request",
+                    "tables": tables,
+                    "inline_json": inline
+                }
+                continue
+
+            # ── Langkah 2: Fallback ke DOM Extraction (browser) ──
+            warn(f"  [{name}] Direct Request kurang data, mencoba DOM Extraction...")
+            dom_data = technique_dom_extraction(url, selectors=["table", '[class*="price"]', '[class*="harga"]'])
+            if dom_data:
+                dom_tables = dom_data.get("tables", [])
+                dom_articles = dom_data.get("articles", [])
+                if dom_tables or dom_articles:
+                    ok(f"  [{name}] {len(dom_tables)} tabel + {len(dom_articles)} item via DOM Extraction")
+                    all_results[name] = {
+                        "technique": "dom_extraction",
+                        "tables": dom_tables,
+                        "articles": dom_articles[:50]
+                    }
+                    continue
+
+            warn(f"  [{name}] Tidak ada data harga emas yang ditemukan")
+
         except Exception as e:
             err(f"[{name}] Error: {e}")
 
     if all_results:
         out_path = os.path.join(OUTPUT_DIR, f"emas_combined_{timestamp}.json")
         out = {
-            "metadata": {"scrape_date": datetime.now().isoformat(), "sources": list(all_results.keys())},
+            "metadata": {
+                "scrape_date": datetime.now().isoformat(),
+                "sources": list(all_results.keys()),
+                "total_sources": len(all_results)
+            },
             "data": all_results
         }
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=2)
         show_result("HARGA EMAS BERHASIL DI-SCRAPE", os.path.abspath(out_path), len(all_results))
+
+        # Preview data
+        head("Preview Data:")
+        for src_name, src_data in all_results.items():
+            tbls = src_data.get("tables", [])
+            if tbls:
+                tbl = tbls[0]
+                rows = tbl.get("rows", [])[:3]
+                for row in rows:
+                    if isinstance(row, dict):
+                        vals = " | ".join(f"{v}" for v in list(row.values())[:4])
+                    else:
+                        vals = " | ".join(str(c) for c in row[:4])
+                    print(f"    {Fore.CYAN}[{src_name}]{Style.RESET_ALL} {vals}")
     else:
         err("Tidak ada data emas yang ditemukan!")
 
@@ -491,7 +520,7 @@ def run_scrape_emas():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_crypto():
-    """Scrape data cryptocurrency dari CoinMarketCap atau sumber lain."""
+    """Scrape data cryptocurrency menggunakan teknik langsung."""
     print_header("② SCRAPE CRYPTOCURRENCY")
 
     sources = [
@@ -507,44 +536,71 @@ def run_scrape_crypto():
     if custom:
         sources.append(("Custom", custom))
 
-    head("Memulai scraping menggunakan Network Capture (XHR Intercept)...")
+    head("Memulai scraping...")
     timestamp = int(time.time())
     all_results = {}
 
     for name, url in sources:
-        info(f"Scraping [{name}] via Network Capture...")
+        info(f"Scraping [{name}]...")
         try:
-            result = subprocess.run(
-                [sys.executable, "main.py", url],
-                capture_output=True, text=True, timeout=120,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
-            files = sorted(
-                glob.glob(os.path.join(OUTPUT_DIR, f"*{_domain(url)}*")),
-                key=os.path.getmtime, reverse=True
-            )
-            if files:
-                with open(files[0], encoding="utf-8") as f:
-                    data = json.load(f)
-                # Cari data crypto dari endpoint API yang tertangkap
-                if "data" in data:
-                    api_data = {k: v for k, v in data["data"].items() if k.startswith("http")}
-                    if api_data:
-                        all_results[name] = {"file": files[0], "endpoints": len(api_data)}
-                        ok(f"[{name}] {len(api_data)} API endpoint tertangkap")
-                    else:
-                        warn(f"[{name}] Tidak ada API endpoint JSON yang tertangkap")
-            else:
-                warn(f"[{name}] Output file tidak ditemukan")
+            # ── Langkah 1: Network Capture (intercept API JSON) ──
+            info(f"  → Teknik ②: Network Capture (Playwright XHR Intercept)...")
+            nc_data = technique_network_capture(url)
+
+            captured = nc_data.get("captured_apis", {}) if nc_data else {}
+            next_data = nc_data.get("__NEXT_DATA__") if nc_data else None
+
+            if captured:
+                ok(f"  [{name}] {len(captured)} API endpoint tertangkap")
+                all_results[name] = {
+                    "technique": "network_capture",
+                    "api_count": len(captured),
+                    "apis": captured
+                }
+                if next_data:
+                    all_results[name]["__NEXT_DATA__"] = next_data
+                continue
+
+            # ── Langkah 2: DOM Extraction ──
+            warn(f"  [{name}] Tidak ada API, mencoba DOM Extraction...")
+            dom_data = technique_dom_extraction(url, selectors=["table", '[class*="coin"]', '[class*="crypto"]'])
+            if dom_data:
+                dom_tables = dom_data.get("tables", [])
+                dom_articles = dom_data.get("articles", [])
+                if dom_tables or dom_articles:
+                    ok(f"  [{name}] {len(dom_tables)} tabel + {len(dom_articles)} item via DOM Extraction")
+                    all_results[name] = {
+                        "technique": "dom_extraction",
+                        "tables": dom_tables,
+                        "articles": dom_articles[:100]
+                    }
+                    continue
+
+            warn(f"  [{name}] Tidak ada data crypto yang ditemukan")
+
         except Exception as e:
             err(f"[{name}] Error: {e}")
 
     if all_results:
         out_path = os.path.join(OUTPUT_DIR, f"crypto_combined_{timestamp}.json")
+        out = {
+            "metadata": {
+                "scrape_date": datetime.now().isoformat(),
+                "sources": list(all_results.keys()),
+                "total_sources": len(all_results)
+            },
+            "data": all_results
+        }
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump({"metadata": {"scrape_date": datetime.now().isoformat()},
-                       "sources": all_results}, f, ensure_ascii=False, indent=2)
+            json.dump(out, f, ensure_ascii=False, indent=2)
         show_result("CRYPTO BERHASIL DI-SCRAPE", os.path.abspath(out_path), len(all_results))
+
+        # Preview
+        head("Preview:")
+        for src_name, src_data in all_results.items():
+            count = src_data.get("api_count", 0) or len(src_data.get("tables", []))
+            tech = src_data.get("technique", "unknown")
+            print(f"    {Fore.CYAN}[{src_name}]{Style.RESET_ALL} {count} data via {tech}")
     else:
         err("Tidak ada data crypto yang ditemukan!")
 
@@ -671,36 +727,80 @@ def run_scrape_berita():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_saham():
-    """Scrape data saham dari Pluang (semua 64 halaman) atau custom."""
+    """Scrape data saham menggunakan teknik langsung."""
     print_header("④ SCRAPE SAHAM / STOCKS")
 
     presets = {
-        "1": ("Pluang (US Stocks - 639 ticker)", "pluang"),
-        "2": ("Custom URL...", "custom"),
+        "1": ("Pluang (US Stocks)", "https://pluang.com/saham-as"),
+        "2": ("Custom URL...", ""),
     }
 
-    for k, (name, _) in presets.items():
-        print(f"     {Fore.YELLOW}{k}{Style.RESET_ALL}. {name}")
+    for k, (name, url) in presets.items():
+        display = f"  {Fore.CYAN}{url}{Style.RESET_ALL}" if url else ""
+        print(f"     {Fore.YELLOW}{k}{Style.RESET_ALL}. {name}{display}")
 
     choice = ask("Pilihan (1-2)", "1")
 
+    timestamp = int(time.time())
+
     if choice == "1":
-        info("Menjalankan scraper Pluang (64 halaman, ~100 detik)...")
-        try:
-            result = subprocess.run(
-                [sys.executable, "scrape_pluang_stocks.py"],
-                timeout=200,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
-            files = sorted(glob.glob(os.path.join(OUTPUT_DIR, "pluang_all_stocks_*.json")),
-                           key=os.path.getmtime, reverse=True)
-            if files:
-                with open(files[0], encoding="utf-8") as f:
-                    data = json.load(f)
-                show_result("SAHAM BERHASIL DI-SCRAPE", files[0],
-                            data["metadata"]["total_stocks_found"])
-        except Exception as e:
-            err(f"Error: {e}")
+        head("Scraping Pluang US Stocks via SSR Parser...")
+        base_url = "https://pluang.com/saham-as"
+        all_stocks = []
+        page_num = 1
+        max_pages = 70
+
+        while page_num <= max_pages:
+            url = f"{base_url}?page={page_num}" if page_num > 1 else base_url
+            info(f"  Halaman {page_num}...")
+
+            data = technique_ssr_parser(url)
+            if not data:
+                if page_num == 1:
+                    warn("SSR tidak ditemukan, mencoba DOM Extraction...")
+                    dom = technique_dom_extraction(base_url)
+                    if dom and dom.get("tables"):
+                        all_stocks = dom["tables"]
+                break
+
+            # Ekstrak dari __NEXT_DATA__ pageProps
+            try:
+                page_props = data.get("props", {}).get("pageProps", {})
+                stocks = page_props.get("stocks", page_props.get("data", []))
+                if isinstance(stocks, list) and len(stocks) > 0:
+                    all_stocks.extend(stocks)
+                    ok(f"  Halaman {page_num}: {len(stocks)} ticker")
+                    page_num += 1
+                else:
+                    break
+            except Exception:
+                break
+
+        if all_stocks:
+            out_path = os.path.join(OUTPUT_DIR, f"pluang_all_stocks_{timestamp}.json")
+            out = {
+                "metadata": {
+                    "scrape_date": datetime.now().isoformat(),
+                    "source": "pluang.com",
+                    "total_stocks_found": len(all_stocks),
+                    "pages_scraped": page_num - 1
+                },
+                "stocks": all_stocks
+            }
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(out, f, ensure_ascii=False, indent=2)
+            show_result("SAHAM BERHASIL DI-SCRAPE", os.path.abspath(out_path), len(all_stocks))
+
+            # Preview
+            head("5 Ticker Pertama:")
+            for s in all_stocks[:5]:
+                if isinstance(s, dict):
+                    sym = s.get("symbol", s.get("ticker", "?"))
+                    name_ = s.get("name", s.get("companyName", ""))
+                    price = s.get("price", s.get("lastPrice", "?"))
+                    print(f"    {Fore.GREEN}{sym:>6}{Style.RESET_ALL}  {name_[:40]:40}  ${price}")
+        else:
+            err("Tidak ada data saham yang ditemukan!")
     else:
         url = ask("Masukkan URL halaman saham")
         if not url:
@@ -712,8 +812,7 @@ def run_scrape_saham():
                 info("SSR tidak ditemukan, mencoba DOM extraction...")
                 data = technique_dom_extraction(url)
             if data:
-                ts   = int(time.time())
-                path = os.path.join(OUTPUT_DIR, f"saham_custom_{ts}.json")
+                path = os.path.join(OUTPUT_DIR, f"saham_custom_{timestamp}.json")
                 with open(path, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 show_result("SAHAM CUSTOM BERHASIL", path, 1)
@@ -819,49 +918,109 @@ def run_scrape_custom():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_all():
-    """Jalankan semua scraper sekaligus."""
+    """Jalankan semua scraper sekaligus menggunakan teknik langsung."""
     print_header("⑥ SCRAPE ALL — SEMUA SEKALIGUS")
 
     warn("Mode ini akan menjalankan semua scraper secara berurutan.")
-    warn("Estimasi waktu: ~10-15 menit total.")
+    warn("Estimasi waktu: ~5-10 menit total.")
     confirm = ask("Lanjutkan? (y/n)", "y")
     if confirm.lower() != "y":
         return
 
     tasks = [
-        ("① Harga Emas (Galeri24 + harga-emas.org)",  ["main.py", "https://galeri24.co.id/"]),
-        ("② Harga Emas (harga-emas.org)",              ["main.py", "https://harga-emas.org/"]),
-        ("③ Crypto (CoinMarketCap)",                   ["main.py", "https://coinmarketcap.com/"]),
-        ("④ Saham US (Pluang 639 ticker)",             ["scrape_pluang_stocks.py"]),
-        ("⑤ Mata Uang (TradingEconomics)",             ["scrape_tradingeconomics_currencies.py"]),
-        ("⑥ Berita (Kompas.com)",                     ["scrape_kompas_news.py"]),
+        ("① Harga Emas",                 "emas"),
+        ("② Cryptocurrency",              "crypto"),
+        ("③ Berita (Kompas.com)",          "berita"),
+        ("④ Saham US (Pluang)",           "saham"),
+        ("⑤ Mata Uang (TradingEconomics)","currency"),
     ]
 
     results = []
     total = len(tasks)
 
-    for i, (name, cmd) in enumerate(tasks, 1):
+    for i, (name, category) in enumerate(tasks, 1):
         head(f"[{i}/{total}] {name}")
         t0 = time.time()
         try:
-            result = subprocess.run(
-                [sys.executable] + cmd,
-                timeout=300,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
+            if category == "emas":
+                # Direct request untuk semua sumber emas
+                for src_name, src_url in [("Harga-Emas.org", "https://harga-emas.org/"),
+                                           ("Galeri24", "https://galeri24.co.id/")]:
+                    info(f"  Scraping {src_name}...")
+                    data = technique_direct_request(src_url, category="emas")
+                    if data and data.get("tables"):
+                        ts = int(time.time())
+                        path = os.path.join(OUTPUT_DIR, f"emas_{_domain(src_url).replace('.','_')}_{ts}.json")
+                        with open(path, "w", encoding="utf-8") as f:
+                            json.dump({"metadata": {"source": src_url, "scrape_date": datetime.now().isoformat()},
+                                       "data": data}, f, ensure_ascii=False, indent=2)
+                        ok(f"  {src_name}: {len(data['tables'])} tabel → {path}")
+
+            elif category == "crypto":
+                info(f"  Scraping CoinMarketCap via Network Capture...")
+                nc_data = technique_network_capture("https://coinmarketcap.com/")
+                if nc_data and nc_data.get("captured_apis"):
+                    ts = int(time.time())
+                    path = os.path.join(OUTPUT_DIR, f"crypto_coinmarketcap_{ts}.json")
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(nc_data, f, ensure_ascii=False, indent=2)
+                    ok(f"  {len(nc_data['captured_apis'])} API endpoint tertangkap → {path}")
+
+            elif category == "berita":
+                info(f"  Scraping Kompas.com via DOM Extraction...")
+                dom = technique_dom_extraction("https://www.kompas.com/")
+                if dom and dom.get("articles"):
+                    ts = int(time.time())
+                    path = os.path.join(OUTPUT_DIR, f"berita_kompas_{ts}.json")
+                    arts = [a for a in dom["articles"] if _is_article_url(a.get("url", ""))]
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump({"metadata": {"scrape_date": datetime.now().isoformat(), "count": len(arts)},
+                                   "articles": arts}, f, ensure_ascii=False, indent=2)
+                    ok(f"  {len(arts)} artikel ditemukan → {path}")
+
+            elif category == "saham":
+                info(f"  Scraping Pluang via SSR Parser...")
+                all_stocks = []
+                for pg in range(1, 65):
+                    url = f"https://pluang.com/saham-as?page={pg}" if pg > 1 else "https://pluang.com/saham-as"
+                    data = technique_ssr_parser(url)
+                    if not data:
+                        break
+                    try:
+                        stocks = data.get("props", {}).get("pageProps", {}).get("stocks", [])
+                        if stocks:
+                            all_stocks.extend(stocks)
+                        else:
+                            break
+                    except Exception:
+                        break
+                if all_stocks:
+                    ts = int(time.time())
+                    path = os.path.join(OUTPUT_DIR, f"pluang_all_stocks_{ts}.json")
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump({"metadata": {"total_stocks_found": len(all_stocks)},
+                                   "stocks": all_stocks}, f, ensure_ascii=False, indent=2)
+                    ok(f"  {len(all_stocks)} ticker → {path}")
+
+            elif category == "currency":
+                info(f"  Scraping TradingEconomics via DOM Extraction...")
+                dom = technique_dom_extraction("https://id.tradingeconomics.com/currencies",
+                                                selectors=["table"])
+                if dom and dom.get("tables"):
+                    ts = int(time.time())
+                    path = os.path.join(OUTPUT_DIR, f"tradingeconomics_currencies_{ts}.json")
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(dom, f, ensure_ascii=False, indent=2)
+                    ok(f"  {len(dom['tables'])} tabel → {path}")
+
             elapsed = round(time.time() - t0, 1)
-            if result.returncode == 0:
-                ok(f"Selesai dalam {elapsed}s")
-                results.append((name, "✓ OK", elapsed))
-            else:
-                err(f"Selesai dengan error (exit code {result.returncode})")
-                results.append((name, "✗ ERROR", elapsed))
-        except subprocess.TimeoutExpired:
-            err("Timeout (>5 menit)!")
-            results.append((name, "✗ TIMEOUT", 300))
+            ok(f"Selesai dalam {elapsed}s")
+            results.append((name, "✓ OK", elapsed))
+
         except Exception as e:
+            elapsed = round(time.time() - t0, 1)
             err(f"Error: {e}")
-            results.append((name, f"✗ {e}", 0))
+            results.append((name, f"✗ {e}", elapsed))
 
     # Ringkasan
     head("RINGKASAN HASIL")
