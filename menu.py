@@ -1203,6 +1203,160 @@ def _run_custom_film_scrape():
     _scrape_single_url(f"Film_{name}", url)
 
 
+def _run_zeldaeternity_submenu():
+    """Sub-menu ZeldaEternity (INDOFILM)."""
+    print(f"""
+  {Fore.CYAN}Menu ZeldaEternity (INDOFILM):{Style.RESET_ALL}
+
+    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — 1 judul (masukkan URL)
+    {Fore.YELLOW}2{Style.RESET_ALL}. Scrape Banyak Film — Pilih jumlah
+    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Kategori — Movie / Anime / Donghua / Serial TV
+    {Fore.YELLOW}0{Style.RESET_ALL}. Kembali
+""")
+    choice = ask("Pilihan (0-3)", "2")
+
+    try:
+        from scrape_zeldaeternity import quick_scrape, run_full_scrape
+    except ImportError as e:
+        err(f"Gagal import scrape_zeldaeternity: {e}")
+        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+        return
+
+    if choice == "0":
+        return
+
+    elif choice == "1":
+        url = ask("URL detail film/series (contoh: https://zeldaeternity.com/the-housemaid-2025-2/)")
+        if not url:
+            err("URL kosong!")
+            return
+        with_eps = ask("Scrape video/download per episode? (y/n)", "y").lower() == "y"
+        est = _estimate_time(1, with_eps)
+        print(f"\n  {Fore.CYAN}⏱  Estimasi: {Fore.WHITE}{Style.BRIGHT}{est}{Style.RESET_ALL}")
+        confirm = ask("Lanjutkan? (y/n)", "y")
+        if confirm.lower() != "y":
+            info("Dibatalkan.")
+            return
+        print()
+        result = quick_scrape(url, with_episodes=with_eps)
+        if result:
+            ok(f"Judul: {result.get('title', '?')}")
+            ok(f"Tipe: {result.get('type', '?')}")
+            ok(f"Genre: {', '.join(result.get('genres', []))}")
+            ok(f"Episode: {result.get('total_episodes', 0)}")
+            if result.get("download_links"):
+                ok(f"Download: {len(result['download_links'])} link")
+            if result.get("sinopsis"):
+                head("Sinopsis:")
+                print(f"    {result['sinopsis'][:200]}...")
+
+    elif choice == "2":
+        print(f"""
+  {Fore.CYAN}Pilih jumlah film:{Style.RESET_ALL}
+
+    {Fore.YELLOW}1{Style.RESET_ALL}. 30 film     (1-2 halaman)
+    {Fore.YELLOW}2{Style.RESET_ALL}. 100 film    (5-6 halaman)
+    {Fore.YELLOW}3{Style.RESET_ALL}. 500 film    (25 halaman)
+    {Fore.YELLOW}4{Style.RESET_ALL}. 1000 film   (50 halaman)
+    {Fore.YELLOW}5{Style.RESET_ALL}. SEMUA
+    {Fore.YELLOW}6{Style.RESET_ALL}. Custom
+""")
+        qty_choice = ask("Pilihan (1-6)", "1")
+        presets = {"1": 30, "2": 100, "3": 500, "4": 1000, "5": 0}
+
+        if qty_choice in presets:
+            num_films = presets[qty_choice]
+        elif qty_choice == "6":
+            custom = ask("Masukkan jumlah film")
+            try:
+                num_films = int(custom)
+                if num_films <= 0:
+                    raise ValueError
+            except ValueError:
+                err("Jumlah tidak valid!")
+                return
+        else:
+            err("Pilihan tidak valid!")
+            return
+
+        with_eps = ask("Scrape video/download per episode? (y/n)", "y").lower() == "y"
+
+        display_num = "SEMUA" if num_films == 0 else str(num_films)
+        actual = num_films if num_films > 0 else 5000
+        pages = (actual + 19) // 20  # ~20 film/page
+
+        est = _estimate_time(actual, with_eps)
+        print(f"""
+  {Fore.CYAN}╔══════════════════════════════════════════════════════╗
+  ║  📊 ESTIMASI SCRAPING INDOFILM                       ║
+  ╠══════════════════════════════════════════════════════╣{Style.RESET_ALL}
+  {Fore.CYAN}║{Style.RESET_ALL}  Jumlah film     : {Fore.WHITE}{Style.BRIGHT}{display_num:>10}{Style.RESET_ALL}                       {Fore.CYAN}║{Style.RESET_ALL}
+  {Fore.CYAN}║{Style.RESET_ALL}  Video/download  : {Fore.WHITE}{'Ya' if with_eps else 'Tidak':>10}{Style.RESET_ALL}                       {Fore.CYAN}║{Style.RESET_ALL}
+  {Fore.CYAN}║{Style.RESET_ALL}  ⏱  {Fore.WHITE}{Style.BRIGHT}ESTIMASI: {est:>24}{Style.RESET_ALL}          {Fore.CYAN}║{Style.RESET_ALL}
+  {Fore.CYAN}╚══════════════════════════════════════════════════════╝{Style.RESET_ALL}
+""")
+
+        confirm = ask(f"Mulai scraping {display_num} film? (y/n)", "y")
+        if confirm.lower() != "y":
+            info("Dibatalkan.")
+            return
+
+        print()
+        ok("🚀 Mulai scraping...")
+        print()
+
+        run_full_scrape(
+            max_pages=pages if num_films > 0 else None,
+            max_details=num_films if num_films > 0 else None,
+            scrape_episodes=with_eps,
+        )
+
+    elif choice == "3":
+        categories = [
+            ("box-office", "Box Office"),
+            ("movie", "Movie"),
+            ("anime", "Anime"),
+            ("donghua", "Donghua"),
+            ("serial-tv", "Serial TV"),
+            ("animasi", "Animasi"),
+        ]
+        print(f"\n  {Fore.CYAN}Kategori:{Style.RESET_ALL}")
+        for i, (_, label) in enumerate(categories, 1):
+            print(f"    {Fore.YELLOW}{i}{Style.RESET_ALL}. {label}")
+        cat_choice = ask(f"Pilih (1-{len(categories)})", "1")
+        try:
+            cat_slug, cat_name = categories[int(cat_choice) - 1]
+        except (ValueError, IndexError):
+            err("Pilihan tidak valid.")
+            return
+
+        num_str = ask("Berapa judul? (kosong = semua)", "30")
+        try:
+            num = int(num_str) if num_str else 0
+        except ValueError:
+            num = 30
+
+        with_eps = ask("Scrape video/download per episode? (y/n)", "y").lower() == "y"
+
+        actual = num if num > 0 else 500
+        est = _estimate_time(actual, with_eps)
+        print(f"\n  {Fore.CYAN}⏱  Estimasi: {Fore.WHITE}{Style.BRIGHT}{est}{Style.RESET_ALL}")
+        print(f"  {Fore.CYAN}Kategori: {Fore.WHITE}{cat_name}{Style.RESET_ALL}")
+
+        confirm = ask("\nMulai? (y/n)", "y")
+        if confirm.lower() != "y":
+            return
+
+        print()
+        pages = (actual + 19) // 20
+        run_full_scrape(
+            max_pages=pages if num > 0 else None,
+            max_details=num if num > 0 else None,
+            scrape_episodes=with_eps,
+            category_url=f"https://zeldaeternity.com/category/{cat_slug}/",
+        )
+
+
 def run_scrape_film():
     """Menu utama Scrape Film."""
     print_header("🎬 SCRAPE FILM / DRAMA / SERIES")
@@ -1211,17 +1365,21 @@ def run_scrape_film():
 
     {Fore.YELLOW}1{Style.RESET_ALL}. 🎭  DrakorKita — Drama Korea, Jepang, China, dll
                  (drakorkita3.nicewap.sbs — 11.779 judul)
-    {Fore.YELLOW}2{Style.RESET_ALL}. 🌐  Link Lainnya — Scrape dari URL situs film lain
+    {Fore.YELLOW}2{Style.RESET_ALL}. 🎬  ZeldaEternity (INDOFILM) — Film, Anime, Donghua, Series
+                 (zeldaeternity.com — Ribuan judul)
+    {Fore.YELLOW}3{Style.RESET_ALL}. 🌐  Link Lainnya — Scrape dari URL situs film lain
     {Fore.YELLOW}0{Style.RESET_ALL}. 🔙  Kembali
 """)
 
-    choice = ask("Pilihan (0-2)", "1")
+    choice = ask("Pilihan (0-3)", "1")
 
     if choice == "0":
         return
     elif choice == "1":
         _run_drakorkita_submenu()
     elif choice == "2":
+        _run_zeldaeternity_submenu()
+    elif choice == "3":
         _run_custom_film_scrape()
     else:
         err("Pilihan tidak valid.")
@@ -1256,7 +1414,7 @@ def run_view_results():
     # ── Definisi kategori berdasarkan pola nama file / folder ──
     CATEGORIES = {
         "🎬 Film / Drama / Series": {
-            "patterns": ["drakorkita", "film_", "drama", "movie", "series"],
+            "patterns": ["drakorkita", "zelda", "indofilm", "film_", "drama", "movie", "series"],
             "subdir": "drakorkita",
         },
         "🥇 Harga Emas": {
