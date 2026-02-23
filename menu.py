@@ -496,7 +496,7 @@ def _scrape_single_url(name: str, url: str):
         "data": result
     }
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, indent=2)
+        json.dump(out, f, ensure_ascii=False, indent=2, default=str)
 
     size = round(os.path.getsize(out_path) / 1024, 1)
     show_result(f"{name} BERHASIL DI-SCRAPE ({used_technique})",
@@ -819,7 +819,7 @@ def run_scrape_custom():
             "data": data
         }
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
+            json.dump(output, f, ensure_ascii=False, indent=2, default=str)
 
         size = round(os.path.getsize(out_path) / 1024, 1)
         show_result(f"SCRAPING SELESAI ({technique})", os.path.abspath(out_path), 1)
@@ -870,7 +870,7 @@ def run_scrape_all():
                         path = os.path.join(OUTPUT_DIR, f"emas_{_domain(src_url).replace('.','_')}_{ts}.json")
                         with open(path, "w", encoding="utf-8") as f:
                             json.dump({"metadata": {"source": src_url, "scrape_date": datetime.now().isoformat()},
-                                       "data": data}, f, ensure_ascii=False, indent=2)
+                                       "data": data}, f, ensure_ascii=False, indent=2, default=str)
                         ok(f"  {src_name}: {len(data['tables'])} tabel → {path}")
 
             elif category == "crypto":
@@ -880,7 +880,7 @@ def run_scrape_all():
                     ts = int(time.time())
                     path = os.path.join(OUTPUT_DIR, f"crypto_coinmarketcap_{ts}.json")
                     with open(path, "w", encoding="utf-8") as f:
-                        json.dump(nc_data, f, ensure_ascii=False, indent=2)
+                        json.dump(nc_data, f, ensure_ascii=False, indent=2, default=str)
                     ok(f"  {len(nc_data['captured_apis'])} API endpoint tertangkap → {path}")
 
             elif category == "berita":
@@ -892,7 +892,7 @@ def run_scrape_all():
                     arts = [a for a in dom["articles"] if _is_article_url(a.get("url", ""))]
                     with open(path, "w", encoding="utf-8") as f:
                         json.dump({"metadata": {"scrape_date": datetime.now().isoformat(), "count": len(arts)},
-                                   "articles": arts}, f, ensure_ascii=False, indent=2)
+                                   "articles": arts}, f, ensure_ascii=False, indent=2, default=str)
                     ok(f"  {len(arts)} artikel ditemukan → {path}")
 
             elif category == "saham":
@@ -916,7 +916,7 @@ def run_scrape_all():
                     path = os.path.join(OUTPUT_DIR, f"pluang_all_stocks_{ts}.json")
                     with open(path, "w", encoding="utf-8") as f:
                         json.dump({"metadata": {"total_stocks_found": len(all_stocks)},
-                                   "stocks": all_stocks}, f, ensure_ascii=False, indent=2)
+                                   "stocks": all_stocks}, f, ensure_ascii=False, indent=2, default=str)
                     ok(f"  {len(all_stocks)} ticker → {path}")
 
             elif category == "currency":
@@ -927,7 +927,7 @@ def run_scrape_all():
                     ts = int(time.time())
                     path = os.path.join(OUTPUT_DIR, f"tradingeconomics_currencies_{ts}.json")
                     with open(path, "w", encoding="utf-8") as f:
-                        json.dump(dom, f, ensure_ascii=False, indent=2)
+                        json.dump(dom, f, ensure_ascii=False, indent=2, default=str)
                     ok(f"  {len(dom['tables'])} tabel → {path}")
 
             elapsed = round(time.time() - t0, 1)
