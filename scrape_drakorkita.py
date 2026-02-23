@@ -480,36 +480,102 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
         except Exception:
             pass
 
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(3000)
 
-        for ep in range(1, total_eps + 1):
+        # Ambil daftar episode dengan JavaScript (cari .btn-svr buttons)
+        ep_info = page.evaluate("""() => {
+            const btns = document.querySelectorAll('.btn-svr');
+            return Array.from(btns).map((b, i) => ({
+                index: i,
+                text: b.textContent.trim(),
+                mid: b.getAttribute('data-mid') || '',
+                tag: b.getAttribute('data-tag') || ''
+            }));
+        }""")
+
+        if not ep_info:
+            # Fallback: cari tombol angka 1-N
+            ep_info = page.evaluate("""(totalEps) => {
+                const results = [];
+                const buttons = document.querySelectorAll('button, a.btn');
+                for (const btn of buttons) {
+                    const txt = btn.textContent.trim();
+                    if (/^\\d+$/.test(txt)) {
+                        const num = parseInt(txt);
+                        if (num >= 1 && num <= totalEps) {
+                            results.push({index: results.length, text: txt});
+                        }
+                    }
+                }
+                return results;
+            }""", total_eps)
+
+        if not ep_info:
+            log.warning(f"  Tidak ada tombol episode ditemukan.")
+            browser.close()
+            return []
+
+        # Ambil iframe src awal (episode 1)
+        initial_src = page.evaluate("""() => {
+            const iframe = document.querySelector('iframe');
+            return iframe ? iframe.src : '';
+        }""")
+
+        if initial_src:
+            episodes_data.append({
+                "episode": ep_info[0]["text"] if ep_info else "1",
+                "video_embed": initial_src,
+            })
+            log.info(f"  Ep {ep_info[0]['text'] if ep_info else '1'}: {initial_src[:60]}...")
+
+        # Klik setiap episode tombol via JavaScript (bypass iframe interception)
+        for i, ep in enumerate(ep_info):
+            # Skip episode pertama kalau sudah diambil dari initial page
+            if i == 0 and initial_src:
+                continue
+
             try:
-                # Klik tombol episode
-                ep_btn = page.locator(f"[data-episode='{ep}'], button:text('{ep}')").first
-                if ep_btn.is_visible():
-                    ep_btn.click()
-                    page.wait_for_timeout(2000)
+                # Klik episode button via JavaScript (tidak terblokir iframe)
+                clicked = page.evaluate(f"""(idx) => {{
+                    const btns = document.querySelectorAll('.btn-svr');
+                    if (btns[idx]) {{
+                        btns[idx].click();
+                        return true;
+                    }}
+                    return false;
+                }}""", i)
 
-                    # Ambil iframe src
-                    iframe = page.locator("iframe").first
-                    src = iframe.get_attribute("src") if iframe.is_visible() else ""
+                if not clicked:
+                    log.warning(f"  Ep {ep['text']}: tombol tidak ditemukan")
+                    continue
 
-                    # Ambil semua server options
-                    server_info = []
-                    for srv in page.locator("[data-server], .btn-server, .server-btn").all():
-                        srv_name = srv.inner_text()
-                        if srv_name:
-                            server_info.append(srv_name.strip())
+                # Tunggu iframe update
+                page.wait_for_timeout(2500)
 
-                    episodes_data.append({
-                        "episode": ep,
-                        "video_embed": src or "",
-                        "servers_available": server_info,
-                    })
-                    log.info(f"  Episode {ep}: {src[:60]}..." if src else f"  Episode {ep}: no embed")
+                # Ambil iframe src baru via JavaScript
+                src = page.evaluate("""() => {
+                    const iframe = document.querySelector('iframe');
+                    return iframe ? iframe.src : '';
+                }""")
+
+                episodes_data.append({
+                    "episode": ep["text"],
+                    "video_embed": src or "",
+                })
+                log.info(f"  Ep {ep['text']}: {src[:60]}..." if src else f"  Ep {ep['text']}: no embed")
+
             except Exception as e:
-                log.warning(f"  Episode {ep} error: {e}")
-                episodes_data.append({"episode": ep, "video_embed": "", "error": str(e)})
+                log.warning(f"  Ep {ep['text']} error: {e}")
+                episodes_data.append({"episode": ep["text"], "video_embed": "", "error": str(e)})
+
+        # Ambil semua server names
+        servers = page.evaluate("""() => {
+            return Array.from(document.querySelectorAll('.btn-sv')).map(b => b.textContent.trim()).filter(t => t);
+        }""")
+
+        # Tambahkan server info ke setiap episode
+        for ep_data in episodes_data:
+            ep_data["servers_available"] = servers
 
         browser.close()
 
