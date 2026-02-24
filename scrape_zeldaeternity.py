@@ -43,13 +43,21 @@ log = logging.getLogger("ZeldaEternity")
 # ══════════════════════════════════════════════════════════════════════════════
 
 def fetch_listing_page(url: str) -> list[dict]:
-    """Ambil daftar film/series dari satu halaman listing."""
-    try:
-        resp = SESSION.get(url, timeout=20)
-        resp.raise_for_status()
-    except Exception as e:
-        log.error(f"Gagal fetch listing {url}: {e}")
-        return []
+    """Cari daftar film/series dari halaman listing dengan retry agresif."""
+    resp = None
+    for _attempt in range(5):
+        try:
+            timeout = 20 + (_attempt * 10)
+            resp = SESSION.get(url, timeout=timeout)
+            resp.raise_for_status()
+            break
+        except Exception as e:
+            if _attempt < 4:
+                log.warning(f"  ⚠ Timeout/error percobaan {_attempt+1}/5 di {url}: {e}. Retry dalam 3 detik...")
+                time.sleep(3)
+            else:
+                log.error(f"Gagal fetch listing setelah 5x percobaan {url}: {e}")
+                return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
     items = []
@@ -92,9 +100,19 @@ def fetch_listing_page(url: str) -> list[dict]:
 
 
 def get_total_pages(url: str) -> int:
-    """Cari total halaman dari pagination."""
+    """Cari total halaman dari pagination dengan retry."""
+    resp = None
+    for _attempt in range(3):
+        try:
+            resp = SESSION.get(url, timeout=20)
+            break
+        except Exception:
+            time.sleep(2)
+            
+    if not resp:
+        return 1
+
     try:
-        resp = SESSION.get(url, timeout=20)
         soup = BeautifulSoup(resp.text, "html.parser")
         pages = soup.select("ul.page-numbers li a.page-numbers")
         nums = []
@@ -150,12 +168,23 @@ def crawl_all_listings(category_url: str = None, max_pages: int = None) -> list[
 # ══════════════════════════════════════════════════════════════════════════════
 
 def scrape_detail(detail_url: str) -> dict | None:
-    """Scrape halaman detail film/series."""
-    try:
-        resp = SESSION.get(detail_url, timeout=20)
-        resp.raise_for_status()
-    except Exception as e:
-        log.error(f"Gagal fetch detail {detail_url}: {e}")
+    """Scrape halaman detail film/series dengan retry progresif."""
+    resp = None
+    for _attempt in range(5):
+        try:
+            timeout = 20 + (_attempt * 10)
+            resp = SESSION.get(detail_url, timeout=timeout)
+            resp.raise_for_status()
+            break
+        except Exception as e:
+            if _attempt < 4:
+                # Diam-diam retry di background
+                time.sleep(3)
+            else:
+                log.error(f"Gagal fetch detail setelah 5x percobaan {detail_url}: {e}")
+                return None
+
+    if not resp:
         return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -553,59 +582,71 @@ def run_full_scrape(
         }, f, ensure_ascii=False, indent=2)
     log.info(f"📁 Daftar listing disimpan: {listing_path}\n")
 
-    # Step 2: Scrape detail
-    log.info("LANGKAH 2: Scrape detail per judul...")
+    # Step 2 & 3: Scrape detail & episodes
+    log.info("LANGKAH 2: Scrape detail per judul (PARALEL)...")
     details = []
     total = min(len(all_items), max_details) if max_details else len(all_items)
 
-    for i, item in enumerate(all_items[:total], 1):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading
+
+    lock_main = threading.Lock()
+    completed_main = [0]
+
+    def _scrape_worker(args):
+        i, item = args
         try:
-            log.info(f"[{i}/{total}] {item['title']}...")
             detail = scrape_detail(item["detail_url"])
+            if not detail:
+                with lock_main:
+                    completed_main[0] += 1
+                    log.error(f"  ✗ [{completed_main[0]}/{total}] SKIP: {item['title']} (Gagal fetch detail)")
+                return
 
-            if detail:
-                # Log info movie: download & video
-                if detail.get("download_links"):
-                    log.info(f"  📥 {len(detail['download_links'])} download link")
-                if detail.get("video_embed"):
-                    log.info(f"  🎬 Video: {detail['video_embed'][:60]}")
-
+            # Jika butuh scrape episodes
+            if scrape_episodes and detail.get("episodes"):
+                ep_data = []
+                # Karena ini sekadar HTTP request (bukan Playwright), kita bisa parallel di dalam parallel
+                # Namun untuk aman dari ban IP, kita proses sekuensial cepat saja
+                for ep in detail["episodes"]:
+                    try:
+                        ep_result = scrape_episode_page(ep["url"])
+                        if ep_result:
+                            ep_data.append({"label": ep["label"], **ep_result})
+                    except Exception as e:
+                        pass
+                detail["episode_details"] = ep_data
+            
+            with lock_main:
                 details.append(detail)
+                completed_main[0] += 1
+                
+                # Log summary
+                vid_msg = f"  🎬 Video: {detail['video_embed'][:40]}..." if detail.get("video_embed") else ""
+                eps_msg = f"  📺 {len(detail.get('episode_details', []))} eps" if detail.get("episode_details") else ""
+                dl_msg  = f"  📥 {len(detail.get('download_links', []))} DL" if detail.get("download_links") else ""
+                
+                summary = " | ".join(filter(None, [eps_msg.strip(), vid_msg.strip(), dl_msg.strip()]))
+                log.info(f"  ✓ [{completed_main[0]}/{total}] {detail['title']} — {summary}")
 
-                # Opsional: Scrape episode details
-                if scrape_episodes and detail.get("episodes"):
-                    log.info(f"  → Scraping {len(detail['episodes'])} episode (video + download)...")
-                    ep_data = []
-                    vid_count = 0
-                    dl_count = 0
-                    for j, ep in enumerate(detail["episodes"], 1):
-                        try:
-                            ep_result = scrape_episode_page(ep["url"])
-                            ep_data.append({
-                                "label": ep["label"],
-                                **ep_result,
-                            })
-                            v = "✓" if ep_result.get("video_embed") else "✗"
-                            d = len(ep_result.get("download_links", []))
-                            if ep_result.get("video_embed"):
-                                vid_count += 1
-                            dl_count += d
-                            log.info(f"    {ep['label']}: Video={v}  Download={d} link")
-                            time.sleep(0.3)
-                        except KeyboardInterrupt:
-                            log.warning(f"\n⚠ Episode scraping dihentikan.")
-                            break
-                    detail["episode_details"] = ep_data
-                    log.info(f"  ✓ {vid_count}/{len(ep_data)} video, {dl_count} download link total")
+        except Exception as e:
+            with lock_main:
+                completed_main[0] += 1
+                log.error(f"  ✗ [{completed_main[0]}/{total}] {item['title']} — Error: {e}")
 
-            time.sleep(0.3)
-
+    tasks = list(enumerate(all_items[:total], 1))
+    
+    # 10 workers untuk paralel request
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_scrape_worker, t): t for t in tasks}
+        try:
+            for future in as_completed(futures):
+                future.result()
         except KeyboardInterrupt:
-            log.warning(f"\n⚠ Dihentikan oleh user (Ctrl+C) setelah {len(details)} judul.")
-            log.info("Menyimpan data yang sudah ter-scrape...")
-            break
+            log.warning(f"\n⚠ Dihentikan oleh user (Ctrl+C). Menyimpan data sementara...")
+            executor.shutdown(wait=False, cancel_futures=True)
 
-    log.info(f"\n✓ Total {len(details)} detail berhasil di-scrape\n")
+    log.info(f"\n✓ Total {len(details)} judul selesai diproses\n")
 
     # Step 3: Simpan
     full_path = os.path.join(OUTPUT_DIR, f"zelda_full_{timestamp}.json")
