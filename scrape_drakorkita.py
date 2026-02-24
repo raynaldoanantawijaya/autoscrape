@@ -530,16 +530,25 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 return results;
             }""", total_eps)
 
-        if not ep_info:
-            log.warning(f"  Tidak ada tombol episode ditemukan.")
-            browser.close()
-            return []
-
-        # Ambil iframe src awal (episode 1)
+        # Ambil iframe src awal (halaman load pertama)
         initial_src = page.evaluate("""() => {
             const iframe = document.querySelector('iframe');
             return iframe ? iframe.src : '';
         }""")
+
+        if not ep_info:
+            if initial_src:
+                log.info(f"  Film Single / Movie terdeteksi. Menyimpan iframe utama...")
+                episodes_data.append({
+                    "episode": "1",
+                    "video_embed": initial_src,
+                })
+                browser.close()
+                return episodes_data
+            else:
+                log.warning(f"  Tidak ada tombol episode & tidak ada iframe video ditemukan.")
+                browser.close()
+                return []
 
         if initial_src:
             episodes_data.append({
