@@ -79,69 +79,74 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
             
     return []
 
-def heuristik_cari_episode(page, base_url: str):
-    """Gunakan Heuristik/AI sederhana untuk menebak mana link episode di sebuah halaman."""
-    # Ambil semua tag A
+def heuristik_cari_film_list(page, base_url: str):
+    """Cari link yang kemungkinan menuju ke halaman Film/Drama dari halaman beranda/kategori."""
     links = page.evaluate("""() => {
         return Array.from(document.querySelectorAll('a')).map(a => {
             return {
                 text: a.innerText.trim(),
                 href: a.href,
-                className: a.className
+                className: a.className,
+                title: a.title
             }
         });
     }""")
     
-    episodes = []
-    seen_urls = set()
+    film_links = []
+    seen = set()
     
-    # Keyword deteksi (Case Insensitive)
-    valid_keywords = ["episode", "ep ", "ep.", "part", "eps", " eps "]
+    # Keyword penghindar (jangan klik link ini)
+    blacklist = [
+        'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
+        '/genre/', '/category/', '/tag/', '/year/', '/country/', '/page/',
+        '/about', '/contact', '/dmca', '/login', '/register', 't.me/',
+        '#', 'javascript:', 'mailto:'
+    ]
     
     for link in links:
         url = link['href']
-        text = link['text'].lower()
+        text = link['title'] or link['text']
         
-        if not url or url.startswith('javascript:') or url.startswith('mailto:') or url.startswith('#'):
+        if not url or not text:
             continue
             
-        # Hindari link ke sosmed / halaman statis
-        if any(b in url for b in ['facebook.com', 'twitter.com', 'instagram.com', '/about', '/contact', '/dmca']):
+        url_lower = url.lower()
+        if any(b in url_lower for b in blacklist):
             continue
+            
+        # Asumsi heuristik: 
+        # 1. URL menuju ke path direktori yang cukup panjang (biasanya slug judul film)
+        # Atau 2. Ada pola movie / tv / series di URL
+        url_parts = url.rstrip('/').split('/')
+        is_film = False
+        
+        # Validasi struktur URL
+        if base_url in url and len(url_parts) > 3:
+            slug = url_parts[-1]
+            if len(slug) > 5 and '-' in slug: # slug kemungkinan judul film
+                is_film = True
+        
+        # Pola eksplisit
+        if '/movie/' in url_lower or '/tv/' in url_lower or '/series/' in url_lower or '/drama/' in url_lower:
+            is_film = True
+            
+        # Pengecualian tambahan: kalau teksnya mengandung hal navigasi
+        if any(nav in text.lower() for nav in ["next", "prev", "home", "beranda", "semua"]):
+            is_film = False
+            
+        if is_film and url not in seen:
+            seen.add(url)
+            film_links.append({"title": title_clean(text), "url": url})
+            
+    return film_links
 
-        is_episode = False
-        
-        # 1. Cek dari teks link (misal: "Episode 1", "Ep 02")
-        if any(kw in text for kw in valid_keywords) and bool(re.search(r'\d+', text)):
-            is_episode = True
-            
-        # 2. Cek dari URL (misal: domain.com/naruto-episode-5/)
-        elif re.search(r'episode-\d+', url.lower()) or re.search(r'-ep-\d+', url.lower()):
-            is_episode = True
-            text = text or re.search(r'(?i)(episode[-\s]*\d+)', url).group(1)
-            
-        if is_episode and url not in seen_urls:
-            seen_urls.add(url)
-            # Bersihkan label
-            label = re.sub(r'\s+', ' ', link['text'] or text).strip()
-            if not label:
-                label = f"Episode {len(episodes) + 1}"
-                
-            episodes.append({
-                "label": label,
-                "url": url
-            })
-            
-    # Sort secara natural agar urutannya Ep 1, Ep 2, ... Ep 10
-    def natural_keys(text):
-        return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', text)]
-        
-    episodes.sort(key=lambda x: natural_keys(x["label"]))
-    return episodes
+def title_clean(t):
+    # Bersihkan spasi kosong dan newline berlebih
+    return re.sub(r'\s+', ' ', t).strip()
 
 def run_custom_scrape(url: str, output_name: str = "custom_film"):
-    """Pipeline scraper heuristik untuk URL acak."""
-    log.info(f"🚀 Memulai Scraper Film Universal (Heuristik AI) untuk: {url}")
+    """Pipeline scraper heuristik: Deteksi Halaman Utama vs Halaman Detail Film."""
+    log.info(f"🚀 Memindai Struktur URL: {url}")
     timestamp = int(time.time())
     
     try:
@@ -150,25 +155,15 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
         log.error("Playwright belum terinstall.")
         return
         
-    # Cari path browser Linux
     browser_path = None
     for candidate in ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"]:
         if os.path.isfile(candidate):
             browser_path = candidate
             break
 
-    detail_data = {
-        "source_url": url,
-        "title": "Unknown Title",
-        "video_embeds": [],
-        "episodes": []
-    }
+    found_films = []
     
-    episodes_links = []
-    
-    # ── FASE 1: Buka halaman utama & Cek Link Episode ──
-    log.info("LANGKAH 1: Menganalisa halaman dengan Heuristik...")
-    
+    # ── FASE 1: Buka halaman & Deteksi (Katalog vs Single Film) ──
     with sync_playwright() as p:
         launch_args = {"headless": True}
         if browser_path:
@@ -186,80 +181,150 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
             page.wait_for_timeout(3000)
             
-            # Ekstrak Titel
-            title = page.title()
-            if title:
-                detail_data["title"] = title.split('-')[0].split('|')[0].strip()
-            
-            # Cari link episode
+            # Cek apakai ini katalog film atau sudah masuk halaman detail film tunggal
             episodes_links = heuristik_cari_episode(page, url)
-            
-            # Cari iframe di halaman utama (berguna jika ini Movie / tidak ada episode)
             frame_srcs = page.evaluate("""() => Array.from(document.querySelectorAll('iframe')).map(f => f.src);""")
             main_iframes = [s for s in frame_srcs if not _is_ad_iframe(s)]
-            detail_data["video_embeds"] = main_iframes
             
+            if episodes_links or main_iframes:
+                # Ini kemungkinan besar SUDAH halaman Film detail tunggal
+                title = page.title()
+                if title:
+                    title = title.split('-')[0].split('|')[0].strip()
+                found_films = [{"title": title or "Unknown", "url": url}]
+                log.info(f"✓ URL ini terdeteksi sebagai Halaman Detail Film (Episode: {len(episodes_links)}, Iframe: {len(main_iframes)})")
+            else:
+                # Ini kemungkinan Halaman Beranda / Kategori Web
+                log.info("✓ Tidak ada video/episode di URL ini. Memindai daftar tautan film...")
+                found_films = heuristik_cari_film_list(page, url)
+                if not found_films:
+                    log.error("✗ Heuristik gagal menemukan link film atau episode aktif di halaman ini.")
+                    browser.close()
+                    return
+                log.info(f"✓ Heuristik menemukan {len(found_films)} judul film/series di halaman beranda.")
+                
         except Exception as e:
-            log.error(f"Gagal memuat halaman utama: {e}")
+            log.error(f"Gagal memuat URL: {e}")
             browser.close()
             return
             
         browser.close()
-        
-    log.info(f"✓ Judul terdeteksi: {detail_data['title']}")
-    
-    if episodes_links:
-        log.info(f"✓ Heuristik mendeteksi {len(episodes_links)} link Episode!")
-    else:
-        log.info(f"✓ Tidak ada link episode terdeteksi, diasumsikan sebagai Film Tunggal (Movie)")
-        if detail_data["video_embeds"]:
-            log.info(f"  🎬 Ditemukan {len(detail_data['video_embeds'])} iframe video di halaman utama.")
-            
-    # ── FASE 2: Gempur Paralel (Jika ada Episode) ──
-    if episodes_links:
-        log.info(f"\nLANGKAH 2: Scrape {len(episodes_links)} Episode PARALEL (Max 10 browser)...")
-        
-        results_ep = [{"label": ep["label"], "url": ep["url"], "video_embeds": []} for ep in episodes_links]
-        
-        lock = threading.Lock()
-        completed = [0]
-        
-        def _scrape_ep_worker(index, ep):
-            iframes = extract_iframe_from_page(ep["url"], browser_path)
-            with lock:
-                results_ep[index]["video_embeds"] = iframes
-                completed[0] += 1
-                v = f"🎬 {len(iframes)} video" if iframes else "✗ Kosong"
-                log.info(f"  ✓ [{completed[0]}/{len(episodes_links)}] {ep['label']} — {v}")
 
-        with ThreadPoolExecutor(max_workers=min(len(episodes_links), 10)) as executor:
-            tasks = {executor.submit(_scrape_ep_worker, i, ep): i for i, ep in enumerate(episodes_links)}
+    # ── FASE 2: Tanya User (Jika banyak film) ──
+    from modules.interaction import ask
+    
+    if len(found_films) > 1:
+        print()
+        log.info(f"Daftar Film yang Ditemukan (Total: {len(found_films)}):")
+        for i, f in enumerate(found_films[:5]):
+            print(f"  {i+1}. {f['title'][:60]}")
+        if len(found_films) > 5:
+            print(f"  ... dan {len(found_films) - 5} lainnya.")
+        
+        print()
+        limit_str = ask(f"Berapa film yang ingin di-scrape? (1-{len(found_films)}, 'all' untuk semua)", "all")
+        if limit_str.lower() != 'all':
+            try:
+                limit = int(limit_str)
+                found_films = found_films[:limit]
+            except:
+                log.error("Input tidak valid, membatalkan.")
+                return
+
+    # ── FASE 3: Proses Scrape Penuh per Judul Secara BERSAMAAN ──
+    log.info(f"\n🚀 Memulai Auto-Scrape {len(found_films)} Film/Drama secara PARALEL...\n")
+    
+    all_results = []
+    
+    # Limit max 5 worker pararel untuk scrape full page untuk mencegah lag parah
+    # karena masing-masing page juga bisa open 10 iframe paralel lagi di dalam.
+    lock = threading.Lock()
+    completed = [0]
+    
+    def _scrape_single_film(film_info):
+        f_url = film_info["url"]
+        f_title = film_info["title"]
+        
+        detail_data = {
+            "source_url": f_url,
+            "title": f_title,
+            "video_embeds": [],
+            "episodes": []
+        }
+        
+        try:
+            with sync_playwright() as p:
+                launch_args = {"headless": True}
+                if browser_path:
+                    launch_args["executable_path"] = browser_path
+                    
+                try:
+                    b_local = p.chromium.launch(**launch_args)
+                except:
+                    b_local = p.chromium.launch(headless=True)
+                    
+                ctx_local = b_local.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                page_local = ctx_local.new_page()
+                
+                try:
+                    page_local.goto(f_url, wait_until="domcontentloaded", timeout=30000)
+                    page_local.wait_for_timeout(3000)
+                    
+                    real_title = page_local.title()
+                    if real_title:
+                        detail_data["title"] = real_title.split('-')[0].split('|')[0].strip()
+                        
+                    ep_links = heuristik_cari_episode(page_local, f_url)
+                    frame_srcs = page_local.evaluate("""() => Array.from(document.querySelectorAll('iframe')).map(f => f.src);""")
+                    main_iframes = [s for s in frame_srcs if not _is_ad_iframe(s)]
+                    detail_data["video_embeds"] = main_iframes
+                except:
+                    ep_links = []
+                b_local.close()
+
+            # Ekstrak Episode
+            if ep_links:
+                results_ep = [{"label": ep["label"], "url": ep["url"], "video_embeds": []} for ep in ep_links]
+                
+                # paralel episode dalam film
+                def _ep_worker(index, ep):
+                    results_ep[index]["video_embeds"] = extract_iframe_from_page(ep["url"], browser_path)
+
+                # Gunakan 3 thread per film untuk episode agar komputer tidak crash
+                with ThreadPoolExecutor(max_workers=3) as ex_ep:
+                    t_ep = {ex_ep.submit(_ep_worker, i, ep): i for i, ep in enumerate(ep_links)}
+                    for f in as_completed(t_ep):
+                        f.result()
+                        
+                detail_data["episodes"] = results_ep
+                
+                # Verifikasi 1 Ronde Cukup untuk custom
+                missing = [(i, ep) for i, ep in enumerate(detail_data["episodes"]) if not ep["video_embeds"]]
+                for i, ep in missing:
+                    retry_frames = extract_iframe_from_page(ep["url"], browser_path)
+                    if retry_frames:
+                        detail_data["episodes"][i]["video_embeds"] = retry_frames
+            
+            with lock:
+                all_results.append(detail_data)
+                completed[0] += 1
+                v = len(detail_data["video_embeds"])
+                e = len(detail_data["episodes"])
+                log.info(f"  ✓ [{completed[0]}/{len(found_films)}] {detail_data['title'][:40]} | 🎬 {v} Vid | 📺 {e} Eps")
+                
+        except Exception as e:
+            with lock:
+                completed[0] += 1
+                log.error(f"  ✗ [{completed[0]}/{len(found_films)}] {f_title} Gagal: {e}")
+
+    with ThreadPoolExecutor(max_workers=min(len(found_films), 3)) as executor:
+        tasks = {executor.submit(_scrape_single_film, f): f for f in found_films}
+        try:
             for future in as_completed(tasks):
                 future.result()
-                
-        detail_data["episodes"] = results_ep
-        log.info("✓ Scraping paralel selesai\n")
-
-        # ── FASE 3: Verifikasi 100% ──
-        MAX_VERIFY = 3
-        for rnd in range(1, MAX_VERIFY + 1):
-            missing = [(i, ep) for i, ep in enumerate(detail_data["episodes"]) if not ep["video_embeds"]]
-            
-            if not missing:
-                log.info(f"✅ VERIFIKASI: Semua episode punya video 100%!")
-                break
-                
-            log.info(f"🔍 VERIFIKASI Ronde {rnd}/{MAX_VERIFY}: {len(missing)} episode kosong. Retry...")
-            for i, ep in missing:
-                log.info(f"  🔄 Retry {ep['label']}...")
-                iframes = extract_iframe_from_page(ep["url"], browser_path)
-                if iframes:
-                    detail_data["episodes"][i]["video_embeds"] = iframes
-                    log.info(f"    ✓ Berhasil dapat {len(iframes)} video!")
-                else:
-                    log.warning(f"    ✗ Tetap kosong.")
-                    
-        log.info("✓ Proses Verifikasi selesai.\n")
+        except KeyboardInterrupt:
+            log.warning("⚠ Dibatalkan user.")
+            executor.shutdown(wait=False, cancel_futures=True)
 
     # ── SIMPAN HASIL ──
     safe_name = re.sub(r'[^A-Za-z0-9_]+', '_', output_name).strip('_').lower()
@@ -271,13 +336,13 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                 "source_url": url,
                 "scrape_date": datetime.now().isoformat(),
                 "technique": "heuristic_playwright_parallel",
-                "episodes_found": len(episodes_links)
+                "total_films": len(all_results)
             },
-            "data": detail_data
+            "data": all_results
         }, f, ensure_ascii=False, indent=2)
 
     log.info(f"{'═'*60}")
-    log.info(f"✓ SELESAI!")
-    log.info(f"  Judul: {detail_data['title']}")
+    log.info(f"✓ SELESAI AUTO-SCRAPE KUSTOM!")
+    log.info(f"  Berhasil: {len(all_results)} Judul")
     log.info(f"  File: {full_path}")
     log.info(f"{'═'*60}")
