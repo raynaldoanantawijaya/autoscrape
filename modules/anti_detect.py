@@ -2,61 +2,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def apply_stealth_to_page(page):
+    """
+    Penerapan Advanced Stealth (Playwright-Stealth).
+    Diterapkan langung pada instance Page (bukan context).
+    Berguna untuk bypass ekstrim Cloudflare Turnstile / DataDome.
+    """
+    try:
+        from playwright_stealth import stealth_sync
+        logger.debug("Menerapkan playwright-stealth ke Page...")
+        stealth_sync(page)
+    except ImportError:
+        logger.warning("Library 'playwright-stealth' belum terinstall. Menggunakan injeksi manual...")
+        script = """
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        if (!window.chrome) { window.chrome = { runtime: {} }; }
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [{0: {type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: Plugin}, description: "Portable Document Format", filename: "internal-pdf-viewer", length: 1, name: "Chrome PDF Plugin"}]
+        });
+        const getParameter = WebGLRenderingContext.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+            if (parameter === 37445) return 'Intel Inc.';
+            if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+            return getParameter.apply(this, arguments);
+        };
+        """
+        page.add_init_script(script)
+
 def apply_stealth(context):
     """
-    Menyuntikkan script untuk menyamarkan indikator otomatisasi (webdriver).
-    Playwright Context Init Script.
+    (Deprecated) Fallback untuk kompatibilitas ke script lama 
+    yang masih memanggil stealth ke context layer.
     """
-    logger.debug("Menerapkan Stealth mode script ke browser context...")
-    
-    script = """
-    // Override navigator.webdriver
-    Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined
-    });
-    
-    // Mock window.chrome if not exists (berguna untuk headless)
-    if (!window.chrome) {
-        window.chrome = {
-            runtime: {}
-        };
-    }
-    
-    // Override permissions fallback
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) => (
-        parameters.name === 'notifications' ?
-            Promise.resolve({ state: Notification.permission }) :
-            originalQuery(parameters)
-    );
-    
-    // Mock Plugin list agar tidak terdeteksi kosong
-    Object.defineProperty(navigator, 'plugins', {
-        get: () => [
-            {
-                0: {type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format", enabledPlugin: Plugin},
-                description: "Portable Document Format",
-                filename: "internal-pdf-viewer",
-                length: 1,
-                name: "Chrome PDF Plugin"
-            }
-        ]
-    });
-    
-    // Mock WebGL Vendor
-    const getParameter = WebGLRenderingContext.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function(parameter) {
-        if (parameter === 37445) { // UNMASKED_VENDOR_WEBGL
-            return 'Intel Inc.';
-        }
-        if (parameter === 37446) { // UNMASKED_RENDERER_WEBGL
-            return 'Intel Iris OpenGL Engine';
-        }
-        return getParameter.apply(this, arguments);
-    };
-    """
-    
-    context.add_init_script(script)
+    context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
 
 def detect_captcha(html_content):

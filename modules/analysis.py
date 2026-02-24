@@ -61,6 +61,105 @@ def smart_dom_extract(html_content: str) -> dict:
             
     return found_data
 
+def ai_llm_extract(html_content: str) -> dict:
+    """
+    Layer 5.5: Ultimate AI Fallback. 
+    Mengirimkan teks mentah dari HTML ke OpenRouter LLM 
+    untuk dipaksa disusun menjadi struktur JSON.
+    """
+    import os
+    import sys
+    sys_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if sys_path not in os.sys.path:
+        os.sys.path.append(sys_path)
+    from config import settings
+    
+    if not settings.USE_LLM_PARSER or not settings.OPENROUTER_API_KEY:
+        logger.warning("LLM Parser nonaktif atau API Key tidak disetel.")
+        return {}
+        
+    if not html_content:
+        return {}
+
+    logger.info("Mempersiapkan teks HTML untuk dikirim ke AI LLM (OpenRouter)...")
+    
+    # Cleaning the HTML to strictly readable text to save tokens
+    soup = BeautifulSoup(html_content, "html.parser")
+    for script_or_style in soup(["script", "style", "noscript", "svg"]):
+        script_or_style.extract()
+    
+    clean_text = soup.get_text(separator=' ', strip=True)
+    # Potong maksimal 15.000 karakter agar tidak melebihi konteks standar model kecil
+    clean_text = clean_text[:15000]
+    
+    if len(clean_text) < 100:
+        logger.warning("Teks HTML terlalu sedikit untuk dianalisa AI.")
+        return {}
+        
+    prompt = f"""
+    You are an expert data scraper. I will give you the raw text extracted from a webpage.
+    Your ABSOLUTE ONLY JOB is to find any structured data (like list of items, movies, prices, stocks, articles, or tables) inside the text, and output it as a STRICT VALID JSON ARRAY of OBJECTS.
+    DO NOT output ANY markdown formatting, DO NOT output ```json, JUST output the raw JSON array starting with [ and ending with ].
+    If you cannot find any meaningful structured data, output [].
+    
+    RAW TEXT TO ANALYZE:
+    {clean_text}
+    """
+    
+    import requests
+    headers = {
+        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/rayna/auto-scraper",
+        "X-Title": "Auto Scraper CLI"
+    }
+    
+    # Gunakan model gratis terkuat di OpenRouter (Llama 3.3 70B)
+    # untuk menghindari 402 Payment Required dan 404 Not Found
+    model_name = "meta-llama/llama-3.3-70b-instruct:free"
+    
+    payload = {
+        "model": model_name, 
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1
+    }
+    
+    try:
+        logger.info(f"Mengirim instruksi ke OpenRouter ({model_name})... mohon tunggu...")
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=45)
+        
+        if response.status_code == 200:
+            res_json = response.json()
+            ai_text = res_json['choices'][0]['message']['content'].strip()
+            
+            # Sanitasi sedikit barangkali AI masih ngotot ngasih markdown
+            if ai_text.startswith("```json"):
+                ai_text = ai_text[7:]
+            if ai_text.startswith("```"):
+                ai_text = ai_text[3:]
+            if ai_text.endswith("```"):
+                ai_text = ai_text[:-3]
+                
+            ai_text = ai_text.strip()
+            
+            extracted_json = json.loads(ai_text)
+            
+            if extracted_json and len(extracted_json) > 0:
+                logger.info(f"AI LLM Sukses! Berhasil menyusun {len(extracted_json)} baris data dari teks kacau.")
+                return {"ai_structured_data": extracted_json}
+            else:
+                logger.warning("AI LLM merespon dengan JSON kosong (tidak menemukan struktur).")
+                return {}
+        else:
+            logger.error(f"Gagal memanggil OpenRouter API: {response.text}")
+            return {}
+            
+    except Exception as e:
+        logger.error(f"Error saat memproses LLM Extraction: {e}")
+        return {}
+
 def find_json(capture_result, target_keywords):
     """
     Analisis dari body XHR/Fetch/Document dan WebSocket untuk menemukan data berharga

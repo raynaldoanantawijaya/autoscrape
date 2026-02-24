@@ -151,6 +151,17 @@ def main(url):
             logger.debug(f"Layer 5 WP AJAX dilewati: {e}")
 
     # =========================================================
+    # LAYER 5.5: Ultimate AI Parser (OpenRouter LLM)
+    # =========================================================
+    if capture_result and capture_result.html_content and settings.USE_LLM_PARSER:
+        logger.info("-> [Layer 5.5] Menjalankan AI LLM Parser. Melempar teks HTML mentah ke OpenRouter...")
+        # Kirim text ke OpenRouter untuk melihat apakah AI bisa memaksakan format JSON
+        llm_data = analysis.ai_llm_extract(capture_result.html_content)
+        if llm_data:
+            logger.info("Layer 5.5 Sukses: AI LLM berhasil menyusun data tersetruktur dari HTML!")
+            return save_data(llm_data, url, "layer5_5_ai_llm")
+
+    # =========================================================
     # LAYER 6: Decryption & External Fallback
     # =========================================================
     if capture_result:

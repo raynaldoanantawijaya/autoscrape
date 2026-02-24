@@ -199,18 +199,31 @@ def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_pro
     if show_progress:
         ok(f"Berhasil mengumpulkan {len(movies_to_process)} link film untuk diproses (dari total {len(movies_list)}).")
     
-    # Tahap 2: Ekstraksi Detail tiap Film
+    # Tahap 2: Ekstraksi Detail tiap Film secara Paralel (Async / ThreadPool)
     results = []
-    for i, movie in enumerate(movies_to_process, 1):
-        if show_progress:
-            info(f"[{i}/{len(movies_to_process)}] Mengekstrak detail: {movie['title']}...")
-            
+    
+    import concurrent.futures
+    max_threads = 10 # Maksimal 10 koneksi bersamaan agar tidak terkena Rate Limit terlampau parah
+    
+    if show_progress:
+        info(f"Memulai ekstrak detail secara paralel menggunakan {max_threads} Threads...")
+
+    def fetch_detail(m):
         try:
-            detailed_movie = extract_movie_details(movie)
-            results.append(detailed_movie)
-            time.sleep(1) # Etika scraping, jeda 1 detik per halaman
+            return extract_movie_details(m)
         except Exception as e:
-            err(f"Gagal ekstrak detail {movie['title']}: {e}")
+            err(f"Gagal ekstrak detail {m['title']}: {e}")
+            return m
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+        # Menjalankan pemrosesan secara paralel
+        future_to_movie = {executor.submit(fetch_detail, m): m for m in movies_to_process}
+        
+        for future in concurrent.futures.as_completed(future_to_movie):
+            detailed_movie = future.result()
+            results.append(detailed_movie)
+            if show_progress:
+                info(f"✓ Berhasil memuat detail: {detailed_movie['title']}")
 
     elapsed = round(time.time() - start_time, 1)
     if show_progress:
