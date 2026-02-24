@@ -500,19 +500,27 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
         except Exception:
             pass
 
-        # Smart-wait: tunggu hingga .btn-svr atau iframe muncul (max 15 detik)
-        for _attempt in range(15):
-            ready = page.evaluate("""() => {
-                const btns = document.querySelectorAll('.btn-svr');
-                const iframe = document.querySelector('iframe');
-                return btns.length > 0 || (iframe && iframe.src && !iframe.src.startsWith('about:'));
-            }""")
-            if ready:
+        # Smart-wait Fase 1: Tunggu .btn-svr (tombol episode) muncul dulu (max 10 detik)
+        # Iframe sering muncul LEBIH CEPAT dari tombol episode, jadi kita HARUS
+        # prioritaskan menunggu tombol episode agar tidak salah deteksi sebagai "Film Single".
+        buttons_found = False
+        for _attempt in range(10):
+            btn_count = page.evaluate("""() => document.querySelectorAll('.btn-svr').length""")
+            if btn_count > 0:
+                buttons_found = True
                 break
             page.wait_for_timeout(1000)
-        else:
-            # Beri waktu tambahan 2 detik jika belum muncul juga
-            page.wait_for_timeout(2000)
+
+        # Smart-wait Fase 2: Jika tombol tidak ditemukan, tunggu iframe saja (max 5 detik lagi)
+        if not buttons_found:
+            for _attempt in range(5):
+                has_iframe = page.evaluate("""() => {
+                    const iframe = document.querySelector('iframe');
+                    return iframe && iframe.src && !iframe.src.startsWith('about:');
+                }""")
+                if has_iframe:
+                    break
+                page.wait_for_timeout(1000)
 
         # Ambil daftar episode dengan JavaScript (cari .btn-svr buttons)
         ep_info = page.evaluate("""() => {
