@@ -1794,13 +1794,29 @@ def run_view_results():
             if len(cat_files) > page_size:
                 print(f"\n    {Fore.YELLOW}...{Style.RESET_ALL} dan {len(cat_files) - page_size} file lainnya")
 
-            print(f"\n    {Fore.YELLOW} d{Style.RESET_ALL}. Hapus file tertentu")
+            print(f"\n    {Fore.YELLOW} c{Style.RESET_ALL}. Hapus semua file")
+            print(f"    {Fore.YELLOW} d{Style.RESET_ALL}. Hapus file tertentu")
             print(f"    {Fore.YELLOW} 0{Style.RESET_ALL}. Kembali ke daftar kategori\n")
 
-            file_choice = ask(f"Pilih file (1-{min(len(cat_files), page_size)}, d, atau 0)", "0")
+            file_choice = ask(f"Pilih file (1-{min(len(cat_files), page_size)}, c, d, atau 0)", "0")
 
             if file_choice == "0":
                 break
+
+            if file_choice.lower() == "c":
+                if ask(f"YAKIN ingin menghapus SEMUA {len(cat_files)} file di kategori '{selected_cat}'? (y/n)", "n").lower() == "y":
+                    count = 0
+                    for f in cat_files:
+                        try:
+                            os.remove(f)
+                            count += 1
+                        except Exception as e:
+                            logger.error(f"Gagal menghapus {f}: {e}")
+                    cat_files.clear()
+                    ok(f"Berhasil menghapus {count} file!")
+                    time.sleep(1)
+                    break # Kembali ke daftar kategori karena sudah kosong
+                continue
 
             if file_choice.lower() == "d":
                 del_c = ask(f"Nomor file yang akan dihapus (1-{min(len(cat_files), page_size)})")
