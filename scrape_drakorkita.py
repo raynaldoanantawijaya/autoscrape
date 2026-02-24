@@ -193,11 +193,23 @@ def scrape_detail(detail_url: str) -> dict | None:
       genre  → .gnr a                 |  info   → .infox .spe span
       eps    → .btn-svr               |  server → .btn-sv
     """
-    try:
-        resp = SESSION.get(detail_url, timeout=20)
-        resp.raise_for_status()
-    except Exception as e:
-        log.error(f"Gagal fetch detail {detail_url}: {e}")
+    # Retry agresif: coba hingga 5x dengan timeout progresif
+    resp = None
+    for _attempt in range(5):
+        try:
+            timeout = 20 + (_attempt * 10)  # 20s, 30s, 40s, 50s, 60s
+            resp = SESSION.get(detail_url, timeout=timeout)
+            resp.raise_for_status()
+            break
+        except Exception as e:
+            if _attempt < 4:
+                log.warning(f"  ⚠ Timeout/error percobaan {_attempt+1}/5: {e}. Retry dalam 3 detik...")
+                time.sleep(3)
+            else:
+                log.error(f"  ✗ Gagal fetch detail setelah 5x percobaan: {detail_url}: {e}")
+                return None
+
+    if resp is None:
         return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -500,11 +512,11 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
         except Exception:
             pass
 
-        # Smart-wait Fase 1: Tunggu .btn-svr (tombol episode) muncul dulu (max 10 detik)
+        # Smart-wait Fase 1: Tunggu .btn-svr (tombol episode) muncul dulu (max 20 detik)
         # Iframe sering muncul LEBIH CEPAT dari tombol episode, jadi kita HARUS
         # prioritaskan menunggu tombol episode agar tidak salah deteksi sebagai "Film Single".
         buttons_found = False
-        for _attempt in range(10):
+        for _attempt in range(20):
             btn_count = page.evaluate("""() => document.querySelectorAll('.btn-svr').length""")
             if btn_count > 0:
                 buttons_found = True
@@ -713,22 +725,34 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
     for i, item in enumerate(all_items[:total], 1):
         try:
             log.info(f"[{i}/{total}] {item['title'] or item['slug']}...")
-            detail = scrape_detail(item["detail_url"])
 
-            if detail:
-                # Merge listing info
-                detail["listing_poster"] = item.get("poster", "")
-                detail["listing_rating"] = item.get("rating", "")
-                details.append(detail)
+            # Retry agresif: jika scrape_detail gagal, coba ulang hingga 3x
+            detail = None
+            for _retry in range(3):
+                detail = scrape_detail(item["detail_url"])
+                if detail:
+                    break
+                if _retry < 2:
+                    log.warning(f"  ⟳ Retry {_retry+2}/3 untuk {item['title'] or item['slug']}...")
+                    time.sleep(5)  # Cooldown sebelum retry
 
-                # Opsional: Scrape episode embeds
-                # Selalu coba Playwright meskipun total_episodes=0 di metadata,
-                # karena metadata sering tidak akurat dan halaman bisa tetap punya tombol episode
-                if scrape_episodes:
-                    ep_count = detail.get("total_episodes", 0) or 0
-                    log.info(f"  → Scraping episode embeds (metadata: {ep_count} ep)...")
-                    ep_data = scrape_episodes_with_browser(item["detail_url"], max(ep_count, 20))
-                    detail["episode_embeds"] = ep_data
+            if not detail:
+                log.error(f"  ✗ SKIP: Gagal scrape detail setelah semua percobaan.")
+                continue
+
+            # Merge listing info
+            detail["listing_poster"] = item.get("poster", "")
+            detail["listing_rating"] = item.get("rating", "")
+            details.append(detail)
+
+            # Opsional: Scrape episode embeds
+            # Selalu coba Playwright meskipun total_episodes=0 di metadata,
+            # karena metadata sering tidak akurat dan halaman bisa tetap punya tombol episode
+            if scrape_episodes:
+                ep_count = detail.get("total_episodes", 0) or 0
+                log.info(f"  → Scraping episode embeds (metadata: {ep_count} ep)...")
+                ep_data = scrape_episodes_with_browser(item["detail_url"], max(ep_count, 20))
+                detail["episode_embeds"] = ep_data
 
             time.sleep(0.3)  # Rate limiting
 
