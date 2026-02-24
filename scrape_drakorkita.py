@@ -813,15 +813,20 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
         }, f, ensure_ascii=False, indent=2)
     log.info(f"📁 Daftar listing disimpan: {listing_path}\n")
 
-    # Step 2: Scrape detail untuk setiap judul (SEKUENSIAL — cepat, ~1-2 detik per judul)
-    log.info("LANGKAH 2: Scrape detail per judul...")
+    # Step 2: Scrape detail untuk setiap judul (PARALEL — sangat cepat)
+    log.info("LANGKAH 2: Scrape detail per judul (PARALEL)...")
     details = []
     total = min(len(all_items), max_details) if max_details else len(all_items)
 
-    for i, item in enumerate(all_items[:total], 1):
-        try:
-            log.info(f"[{i}/{total}] {item['title'] or item['slug']}...")
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading
 
+    lock_detail = threading.Lock()
+    completed_detail = [0]
+
+    def _scrape_detail_worker(args):
+        i, item = args
+        try:
             # Retry agresif: jika scrape_detail gagal, coba ulang hingga 3x
             detail = None
             for _retry in range(3):
@@ -829,34 +834,49 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
                 if detail:
                     break
                 if _retry < 2:
-                    log.warning(f"  ⟳ Retry {_retry+2}/3 untuk {item['title'] or item['slug']}...")
-                    time.sleep(5)
+                    time.sleep(3)
 
             if not detail:
-                log.error(f"  ✗ SKIP: Gagal scrape detail setelah semua percobaan.")
-                continue
+                with lock_detail:
+                    completed_detail[0] += 1
+                    log.error(f"  ✗ [{completed_detail[0]}/{total}] SKIP: Gagal scrape {item['title'] or item['slug']}")
+                return
 
             # Merge listing info
             detail["listing_poster"] = item.get("poster", "")
             detail["listing_rating"] = item.get("rating", "")
             detail["_detail_url"] = item["detail_url"]  # Simpan URL untuk Playwright nanti
-            details.append(detail)
+            
+            with lock_detail:
+                details.append(detail)
+                completed_detail[0] += 1
+                log.info(f"  ✓ [{completed_detail[0]}/{total}] {item['title'] or item['slug']}")
 
-            time.sleep(0.3)  # Rate limiting
+        except Exception as e:
+            with lock_detail:
+                completed_detail[0] += 1
+                log.error(f"  ✗ [{completed_detail[0]}/{total}] Error: {e}")
 
+    tasks_detail = list(enumerate(all_items[:total], 1))
+    
+    # Gunakan max 10 workers untuk paralel request HTTP yang lebih cepat
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures_detail = {executor.submit(_scrape_detail_worker, t): t for t in tasks_detail}
+        try:
+            for future in as_completed(futures_detail):
+                future.result()
         except KeyboardInterrupt:
-            log.warning(f"\n⚠ Dihentikan oleh user (Ctrl+C) setelah {len(details)} judul.")
-            log.info("Menyimpan data yang sudah ter-scrape...")
-            break
+            log.warning(f"\n⚠ Dihentikan oleh user (Ctrl+C). Menyimpan data sementara...")
+            executor.shutdown(wait=False, cancel_futures=True)
 
     log.info(f"\n✓ Total {len(details)} detail berhasil di-scrape\n")
 
-    # Step 3: Scrape episode embeds PARALEL (3 browser sekaligus)
+    # Step 3: Scrape episode embeds PARALEL (Max 10 browser sekaligus)
     if scrape_episodes and details:
         from concurrent.futures import ThreadPoolExecutor, as_completed
         import threading
 
-        PARALLEL_WORKERS = min(len(details), 5)  # Max 5 browser sekaligus
+        PARALLEL_WORKERS = min(len(details), 10)  # Max 10 browser sekaligus
         log.info(f"LANGKAH 3: Scrape episode embeds PARALEL ({PARALLEL_WORKERS} browser)...")
         log.info(f"  📋 {len(details)} judul antrian, {PARALLEL_WORKERS} browser bekerja bersamaan.\n")
 
