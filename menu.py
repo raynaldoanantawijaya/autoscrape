@@ -1085,7 +1085,7 @@ def _run_drakorkita_submenu():
 
 
 def _run_custom_film_scrape():
-    """Scrape film/drama dari URL lain (bukan DrakorKita)."""
+    """Scrape film/drama dari URL lain (Heuristik AI)."""
     url = ask("Masukkan URL situs film/drama")
     if not url:
         err("URL kosong!")
@@ -1097,11 +1097,18 @@ def _run_custom_film_scrape():
         name = match.group(1).replace(".", "_").title() if match else "Custom_Film"
 
     print()
-    info(f"Scraping film dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
+    info(f"Menganalisa struktur web dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
     info(f"Nama sumber: {name}")
     print()
 
-    _scrape_single_url(f"Film_{name}", url)
+    try:
+        from scrape_custom_film import run_custom_scrape
+        run_custom_scrape(url, output_name=f"Film_{name}")
+    except ImportError as e:
+        err(f"Gagal memuat modul scraper universal: {e}")
+        _scrape_single_url(f"Film_{name}", url)  # Fallback ke extractor mentah
+    except Exception as e:
+        err(f"Terjadi kesalahan: {e}")
 
 
 def _run_zeldaeternity_submenu():
