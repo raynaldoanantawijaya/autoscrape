@@ -367,3 +367,46 @@
 2026-02-24 01:28:22 [INFO] direct_request: Mencoba Direct Request ke endpoint umum untuk URL: https://galeri24.co.id/
 2026-02-24 01:28:28 [INFO] direct_request: Berhasil mendapatkan data dari https://galeri24.co.id/api/products
 2026-02-24 01:28:28 [INFO] main: === SUKSES: Data di luar emas (General) disimpan ke: hasil_scrape/galeri24_co_id_direct_api_1771871308.json ===
+2026-02-24 10:07:06 [INFO] main: === Memulai Auto Web Scraper (6-Layer Intelligence Engine) untuk: https://azarug.org/ ===
+2026-02-24 10:07:06 [INFO] main: -> [Layer 1] Memeriksa SSR State Murni (Next.js / Nuxt)...
+2026-02-24 10:07:06 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni...
+2026-02-24 10:07:06 [INFO] network_capture: Memulai Network Capture untuk: https://azarug.org/
+2026-02-24 10:07:06 [INFO] network_capture: Menggunakan browser sistem: C:\Program Files\Google\Chrome\Application\chrome.exe
+2026-02-24 10:07:08 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-24 10:07:24 [INFO] network_capture: Menyimpan state sesi.
+2026-02-24 10:07:25 [INFO] network_capture: HAR tersimpan di: har\https___azarug_org__1771902426.har
+2026-02-24 10:07:25 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-24 10:07:25 [INFO] analysis: Target keyword 'data' ditemukan di endpoint: https://bcp.crwdcntrl.net/6/data?xcid=3825
+2026-02-24 10:07:25 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-24 10:07:25 [INFO] main: Layer 2 Sukses: Payload API asli tertangkap melalui Network Interception!
+2026-02-24 10:07:25 [INFO] main: \n> OUTPUT TERSIMPAN: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\azarug_org_layer2_network_capture_1771902445.json
+2026-02-24 10:07:25 [INFO] main: > METODE: layer2_network_capture | UKURAN: 6.6 KB
+2026-02-24 10:08:18 [INFO] main: === Memulai Auto Web Scraper (6-Layer Intelligence Engine) untuk: https://azarug.org/ ===
+2026-02-24 10:08:18 [INFO] main: -> [Layer 1] Memeriksa SSR State Murni (Next.js / Nuxt)...
+2026-02-24 10:08:18 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni...
+2026-02-24 10:08:18 [INFO] network_capture: Memulai Network Capture untuk: https://azarug.org/
+2026-02-24 10:08:18 [INFO] network_capture: Menggunakan browser sistem: C:\Program Files\Google\Chrome\Application\chrome.exe
+2026-02-24 10:08:19 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-24 10:08:20 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-24 10:08:30 [INFO] network_capture: Menyimpan state sesi.
+2026-02-24 10:08:31 [INFO] network_capture: HAR tersimpan di: har\https___azarug_org__1771902498.har
+2026-02-24 10:08:31 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-24 10:08:31 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-24 10:08:31 [INFO] main: Layer 2 Sukses: Payload API asli tertangkap melalui Network Interception!
+2026-02-24 10:08:31 [INFO] main: \n> OUTPUT TERSIMPAN: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\azarug_org_layer2_network_capture_1771902511.json
+2026-02-24 10:08:31 [INFO] main: > METODE: layer2_network_capture | UKURAN: 5.5 KB
+2026-02-24 10:09:19 [INFO] main: === Memulai Auto Web Scraper (6-Layer Intelligence Engine) untuk: https://azarug.org/ ===
+2026-02-24 10:09:19 [INFO] main: -> [Layer 1] Memeriksa SSR State Murni (Next.js / Nuxt)...
+2026-02-24 10:09:19 [INFO] main: -> [Layer 2] Memulai Network Capture & Parsing Murni...
+2026-02-24 10:09:19 [INFO] network_capture: Memulai Network Capture untuk: https://azarug.org/
+2026-02-24 10:09:19 [INFO] network_capture: Menggunakan browser sistem: C:\Program Files\Google\Chrome\Application\chrome.exe
+2026-02-24 10:09:20 [INFO] network_capture: Memuat state sesi yang tersimpan.
+2026-02-24 10:09:20 [INFO] network_capture: Membuka halaman (tunggu hingga network idle)...
+2026-02-24 10:09:35 [INFO] network_capture: Menyimpan state sesi.
+2026-02-24 10:09:36 [INFO] network_capture: HAR tersimpan di: har\https___azarug_org__1771902559.har
+2026-02-24 10:09:36 [INFO] analysis: Memulai analisis data yang ditangkap...
+2026-02-24 10:09:36 [INFO] analysis: Berhasil mengekstrak inline JSON dari HTML.
+2026-02-24 10:09:36 [INFO] main: -> [Layer 3] Mengeksekusi Smart DOM HTML Parser (Heuristik WordPress/Streaming)...
+2026-02-24 10:09:36 [INFO] main: Layer 3 Sukses: Berhasil membedah DOM! Menemukan 68 artikel yang jauh lebih relevan.
+2026-02-24 10:09:36 [INFO] main: \n> OUTPUT TERSIMPAN: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\azarug_org_layer3_smart_dom_1771902576.json
+2026-02-24 10:09:36 [INFO] main: > METODE: layer3_smart_dom | UKURAN: 16.1 KB

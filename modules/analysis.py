@@ -12,6 +12,55 @@ def is_json_valid(text):
     except (ValueError, TypeError):
         return False
 
+def smart_dom_extract(html_content: str) -> dict:
+    """
+    Kecerdasan untuk mengekstrak data dari DOM secara heuristik.
+    Berguna ketika website (seperti WordPress stream, blog) me-render
+    langsung datanya di HTML tanpa API terpisah.
+    """
+    if not html_content:
+        return {}
+        
+    soup = BeautifulSoup(html_content, "html.parser")
+    found_data = {}
+    
+    # Heuristik 1: Artikel / Item (WordPress / Rebahin / Blog themes)
+    articles = soup.find_all(["article", "div"], class_=lambda c: c and any(kw in str(c).lower() for kw in ["item", "post", "card", "entry", "box"]))
+    if articles:
+        extracted_articles = []
+        for index, item in enumerate(articles[:100]): # Limit to prevent memory bloat
+            a_tag = item.find("a", href=True)
+            title_tag = item.find(["h1", "h2", "h3", "h4", "strong"])
+            
+            title = title_tag.text.strip() if title_tag else ""
+            if not title and a_tag:
+                title = a_tag.get("title", "") or a_tag.text.strip()
+                
+            href = a_tag["href"] if a_tag else ""
+            
+            if title or href:
+                extracted_articles.append({
+                    "id": index + 1,
+                    "judul": title,
+                    "url": href,
+                    "excerpt": item.text.strip()[:100].replace("\\n", " ")
+                })
+        if extracted_articles:
+            found_data["articles"] = extracted_articles
+            
+    # Heuristik 2: Video Embeds (Iframe)
+    iframes = soup.find_all("iframe")
+    if iframes:
+        videos = []
+        for v in iframes:
+            src = v.get("src", "")
+            if src and "youtube" not in src and "ads" not in src:
+                videos.append(src)
+        if videos:
+            found_data["video_embeds"] = videos
+            
+    return found_data
+
 def find_json(capture_result, target_keywords):
     """
     Analisis dari body XHR/Fetch/Document dan WebSocket untuk menemukan data berharga
@@ -81,7 +130,19 @@ def find_json(capture_result, target_keywords):
         found_data["structured_stocks"] = structured_stocks
         logger.info(f"Berhasil memformat data Saham! ({len(structured_stocks)} ticker ditemukan)")
 
-    return found_data if found_data else None
+    if found_data:
+        return found_data
+        
+    # 7. Fallback DOM Parsing (Layer 5) 
+    # Jika tidak ada JSON atau Tabel, coba bedah DOM secara pintar
+    # Berguna untuk WordPress / Streaming / Berita yang di-render hardcoded
+    logger.info("Tidak ada JSON ditemukan. Mencoba Smart DOM Extraction heuristik...")
+    dom_data = smart_dom_extract(capture_result.html_content)
+    if dom_data:
+        logger.info(f"Berhasil mengekstrak {len(dom_data.get('articles', []))} entri artikel/item dari DOM HTML.")
+        return {"smart_dom": dom_data}
+
+    return None
 
 def structure_gold_data(raw_found_data):
     """

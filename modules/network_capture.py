@@ -156,3 +156,61 @@ def capture(url, stealth_config=None, proxies=None):
         logger.info(f"HAR tersimpan di: {har_path}")
         
     return result
+
+def native_browser_fetch(main_url: str, api_endpoints: list, stealth_config=None, proxies=None) -> dict:
+    """Teknik IDX Asli: Eksekusi fetch() langsung secara natif di browser Playwright yang terotentikasi."""
+    logger.info(f"Memulai Native Browser Fetch (Layer 3) melalui {main_url}...")
+    fetched_data = {}
+    
+    with sync_playwright() as p:
+        browser_type = p.chromium
+        args = ["--disable-blink-features=AutomationControlled"]
+        
+        launch_kwargs = {"headless": settings.HEADLESS, "args": args}
+        if proxies: launch_kwargs["proxy"] = proxies
+        
+        sys_browser = _get_browser_path()
+        if sys_browser: launch_kwargs["executable_path"] = sys_browser
+
+        try:
+            browser = browser_type.launch(**launch_kwargs)
+        except Exception:
+            launch_kwargs.pop("executable_path", None)
+            browser = browser_type.launch(**launch_kwargs)
+            
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        if stealth_config and callable(stealth_config):
+            stealth_config(context)
+            
+        page = context.new_page()
+
+        try:
+            logger.info("Mengakses main URL untuk memuat Cookie/Token Vue/React...")
+            page.goto(main_url, timeout=30000, wait_until="networkidle")
+            page.wait_for_timeout(3000)
+
+            for endpoint in api_endpoints:
+                logger.debug(f"Mengeksekusi native fetch ke: {endpoint}")
+                fetch_res = page.evaluate(f'''async () => {{
+                    try {{
+                        const res = await fetch("{endpoint}");
+                        return await res.json();
+                    }} catch (e) {{ return {{error: e.toString()}}; }}
+                }}''')
+                
+                if isinstance(fetch_res, dict) and not fetch_res.get("error"):
+                    fetched_data[endpoint] = fetch_res
+                    logger.info(f"Native fetch berhasil mengekstrak data dari: {endpoint}")
+                else:
+                    logger.warning(f"Native fetch gagal untuk {endpoint}: {fetch_res}")
+
+        except Exception as e:
+            logger.error(f"Terjadi kesalahan saat Native Browser Fetch: {e}")
+        finally:
+            browser.close()
+
+    return fetched_data
