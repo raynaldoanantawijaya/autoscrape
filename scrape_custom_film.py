@@ -99,7 +99,7 @@ def heuristik_cari_episode(page, base_url: str):
         let seen = new Set();
         
         // Pola Zelda/Azarug (.gmr-listseries a) dan pola umum episode list
-        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a');
+        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a, ul.lstep li a, .list-episode li a, [class*="episode"] a');
         
         for (let a of links) {
             let url = a.href;
@@ -108,6 +108,16 @@ def heuristik_cari_episode(page, base_url: str):
                 results.push({label: a.innerText.trim() || 'Episode', url: url});
             }
         }
+        
+        // Reverse if looks like descending
+        if (results.length > 1) {
+            let first = results[0].label.match(/\\d+/);
+            let last = results[results.length-1].label.match(/\\d+/);
+            if (first && last && parseInt(first[0]) > parseInt(last[0])) {
+                results.reverse();
+            }
+        }
+        
         return results;
     }""")
 
@@ -173,11 +183,17 @@ def heuristik_cari_film_list(page, base_url: str):
     seen = set()
     
     # Keyword penghindar (jangan klik link ini)
-    blacklist = [
+    blacklist_url = [
         'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
         '/genre/', '/category/', '/tag/', '/year/', '/country/', '/page/',
         '/about', '/contact', '/dmca', '/login', '/register', 't.me/',
         '#', 'javascript:', 'mailto:'
+    ]
+    
+    blacklist_text = [
+        'iklan', 'pasang', 'archive', 'rating', 'best', 'populer', 'terbaru',
+        'next', 'prev', 'home', 'beranda', 'semua', 'selanjutnya', 'sebelumnya',
+        'login', 'register', 'contact', 'about'
     ]
     
     for link in links:
@@ -188,28 +204,33 @@ def heuristik_cari_film_list(page, base_url: str):
             continue
             
         url_lower = url.lower()
-        if any(b in url_lower for b in blacklist):
+        text_lower = text.lower()
+        
+        # Panjang teks terlalu pendek biasanya hanya menu/icon
+        if len(text.strip()) < 5:
+            continue
+            
+        if any(b in url_lower for b in blacklist_url):
+            continue
+            
+        if any(b in text_lower for b in blacklist_text):
             continue
             
         # Asumsi heuristik: 
         # 1. URL menuju ke path direktori yang cukup panjang (biasanya slug judul film)
         # Atau 2. Ada pola movie / tv / series di URL
-        url_parts = url.rstrip('/').split('/')
+        url_parts = [p for p in url.rstrip('/').split('/') if p]
         is_film = False
         
         # Validasi struktur URL
-        if base_url in url and len(url_parts) > 3:
+        if base_url in url and len(url_parts) >= 3:
             slug = url_parts[-1]
-            if len(slug) > 5 and '-' in slug: # slug kemungkinan judul film
+            if len(slug) > 8 and '-' in slug: # slug kemungkinan judul film
                 is_film = True
         
         # Pola eksplisit
         if '/movie/' in url_lower or '/tv/' in url_lower or '/series/' in url_lower or '/drama/' in url_lower:
             is_film = True
-            
-        # Pengecualian tambahan: kalau teksnya mengandung hal navigasi
-        if any(nav in text.lower() for nav in ["next", "prev", "home", "beranda", "semua"]):
-            is_film = False
             
         if is_film and url not in seen:
             seen.add(url)
@@ -272,13 +293,55 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                 log.info(f"✓ URL ini terdeteksi sebagai Halaman Detail Film (Episode: {len(episodes_links)}, Iframe: {len(main_iframes)})")
             else:
                 # Ini kemungkinan Halaman Beranda / Kategori Web
-                log.info("✓ Tidak ada video/episode di URL ini. Memindai daftar tautan film...")
-                found_films = heuristik_cari_film_list(page, url)
+                log.info("✓ Tidak ada video/episode di URL ini. Memindai daftar tautan film dengan Multiple Paging...")
+                
+                base_url = url.split('://')[0] + '://' + url.split('://')[1].split('/')[0]
+                
+                # Coba paging sampai 5 halaman
+                for page_num in range(1, 6):
+                    films_on_page = heuristik_cari_film_list(page, base_url)
+                    
+                    # Tambahkan jika belum ada
+                    new_films = []
+                    for f in films_on_page:
+                        if not any(existing['url'] == f['url'] for existing in found_films):
+                            new_films.append(f)
+                            
+                    found_films.extend(new_films)
+                    log.info(f"  → Halaman {page_num}: Menemukan {len(new_films)} film baru. (Total: {len(found_films)})")
+                    
+                    if len(found_films) > 250:
+                        log.info("  → Mencapai batas wajar pencarian (250+ film). Berhenti mencari halaman selanjutnya.")
+                        break
+                        
+                    # Deteksi tombol "Next"
+                    next_url = page.evaluate("""() => {
+                        let nextBtn = document.querySelector('.next, .pagination-next, a.next, a[rel="next"]');
+                        if (nextBtn && nextBtn.href) return nextBtn.href;
+                        
+                        // Cari berdasarkan text
+                        let links = Array.from(document.querySelectorAll('a'));
+                        let nextLink = links.find(a => {
+                            let t = a.innerText.trim().toLowerCase();
+                            return t === 'next' || t === 'next »' || t === 'selanjutnya' || t === 'berikutnya';
+                        });
+                        return nextLink ? nextLink.href : null;
+                    }""")
+                    
+                    if next_url and next_url != page.url:
+                        try:
+                            page.goto(next_url, wait_until="domcontentloaded", timeout=15000)
+                            page.wait_for_timeout(2000)
+                        except:
+                            break
+                    else:
+                        break # Tidak ada halaman next lagi
+                        
                 if not found_films:
                     log.error("✗ Heuristik gagal menemukan link film atau episode aktif di halaman ini.")
                     browser.close()
                     return
-                log.info(f"✓ Heuristik menemukan {len(found_films)} judul film/series di halaman beranda.")
+                log.info(f"✓ Selesai scanning. Total {len(found_films)} judul unik ditemukan.")
                 
         except Exception as e:
             log.error(f"Gagal memuat URL: {e}")
