@@ -772,7 +772,7 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
         }, f, ensure_ascii=False, indent=2)
     log.info(f"📁 Daftar listing disimpan: {listing_path}\n")
 
-    # Step 2: Scrape detail untuk setiap judul
+    # Step 2: Scrape detail untuk setiap judul (SEKUENSIAL — cepat, ~1-2 detik per judul)
     log.info("LANGKAH 2: Scrape detail per judul...")
     details = []
     total = min(len(all_items), max_details) if max_details else len(all_items)
@@ -789,7 +789,7 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
                     break
                 if _retry < 2:
                     log.warning(f"  ⟳ Retry {_retry+2}/3 untuk {item['title'] or item['slug']}...")
-                    time.sleep(5)  # Cooldown sebelum retry
+                    time.sleep(5)
 
             if not detail:
                 log.error(f"  ✗ SKIP: Gagal scrape detail setelah semua percobaan.")
@@ -798,16 +798,8 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
             # Merge listing info
             detail["listing_poster"] = item.get("poster", "")
             detail["listing_rating"] = item.get("rating", "")
+            detail["_detail_url"] = item["detail_url"]  # Simpan URL untuk Playwright nanti
             details.append(detail)
-
-            # Opsional: Scrape episode embeds
-            # Selalu coba Playwright meskipun total_episodes=0 di metadata,
-            # karena metadata sering tidak akurat dan halaman bisa tetap punya tombol episode
-            if scrape_episodes:
-                ep_count = detail.get("total_episodes", 0) or 0
-                log.info(f"  → Scraping episode embeds (metadata: {ep_count} ep)...")
-                ep_data = scrape_episodes_with_browser(item["detail_url"], max(ep_count, 20))
-                detail["episode_embeds"] = ep_data
 
             time.sleep(0.3)  # Rate limiting
 
@@ -818,7 +810,57 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
 
     log.info(f"\n✓ Total {len(details)} detail berhasil di-scrape\n")
 
-    # Step 3: Simpan semua detail
+    # Step 3: Scrape episode embeds PARALEL (3 browser sekaligus)
+    if scrape_episodes and details:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+
+        PARALLEL_WORKERS = 3
+        log.info(f"LANGKAH 3: Scrape episode embeds PARALEL ({PARALLEL_WORKERS} browser)...")
+        log.info(f"  {len(details)} judul akan di-scrape episode-nya secara bersamaan.\n")
+
+        lock = threading.Lock()
+        completed = [0]
+
+        def _scrape_one(args):
+            """Worker: scrape episode embed untuk 1 judul."""
+            idx, detail = args
+            url = detail.get("_detail_url", detail.get("url", ""))
+            title = detail.get("title", "?")
+            ep_count = detail.get("total_episodes", 0) or 0
+
+            try:
+                ep_data = scrape_episodes_with_browser(url, max(ep_count, 20))
+                detail["episode_embeds"] = ep_data
+
+                with lock:
+                    completed[0] += 1
+                    log.info(f"  ✓ [{completed[0]}/{len(details)}] {title} — {len(ep_data)} episode")
+
+            except Exception as e:
+                with lock:
+                    completed[0] += 1
+                    log.error(f"  ✗ [{completed[0]}/{len(details)}] {title} — Error: {e}")
+                detail["episode_embeds"] = []
+
+        # Jalankan paralel
+        tasks = list(enumerate(details))
+        with ThreadPoolExecutor(max_workers=PARALLEL_WORKERS) as executor:
+            futures = {executor.submit(_scrape_one, t): t for t in tasks}
+            try:
+                for future in as_completed(futures):
+                    future.result()  # Propagate exceptions
+            except KeyboardInterrupt:
+                log.warning("\n⚠ Dihentikan oleh user (Ctrl+C)")
+                executor.shutdown(wait=False, cancel_futures=True)
+
+        # Hapus field sementara
+        for d in details:
+            d.pop("_detail_url", None)
+
+        log.info(f"\n✓ Semua episode selesai di-scrape\n")
+
+    # Step 4: Simpan semua detail
     full_path = os.path.join(OUTPUT_DIR, f"drakorkita_full_{timestamp}.json")
     with open(full_path, "w", encoding="utf-8") as f:
         json.dump({
