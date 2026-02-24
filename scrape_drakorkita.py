@@ -550,11 +550,17 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 return results;
             }""", total_eps)
 
-        # Ambil iframe src awal (halaman load pertama)
-        initial_src = page.evaluate("""() => {
-            const iframe = document.querySelector('iframe');
-            return iframe ? iframe.src : '';
-        }""")
+        # Setelah tombol ditemukan, tunggu iframe juga siap (max 5 detik)
+        # Tombol bisa muncul lebih cepat dari iframe, jadi perlu tunggu iframe juga
+        initial_src = ""
+        for _wait in range(5):
+            initial_src = page.evaluate("""() => {
+                const iframe = document.querySelector('iframe');
+                return (iframe && iframe.src && !iframe.src.startsWith('about:')) ? iframe.src : '';
+            }""")
+            if initial_src:
+                break
+            page.wait_for_timeout(1000)
 
         if not ep_info:
             if initial_src:
