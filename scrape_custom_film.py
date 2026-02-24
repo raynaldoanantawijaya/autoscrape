@@ -288,7 +288,13 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
         browser.close()
 
     # ── FASE 2: Tanya User (Jika banyak film) ──
-    from modules.interaction import ask
+    def _local_ask(prompt: str, default: str = "") -> str:
+        suffix = f" [{default}]" if default else ""
+        try:
+            val = input(f"  ?  {prompt}{suffix}: ").strip()
+            return val if val else default
+        except (KeyboardInterrupt, EOFError):
+            return default
     
     if len(found_films) > 1:
         print()
@@ -299,7 +305,7 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
             print(f"  ... dan {len(found_films) - 5} lainnya.")
         
         print()
-        limit_str = ask(f"Berapa film yang ingin di-scrape? (1-{len(found_films)}, 'all' untuk semua)", "all")
+        limit_str = _local_ask(f"Berapa film yang ingin di-scrape? (1-{len(found_films)}, 'all' untuk semua)", "all")
         if limit_str.lower() != 'all':
             try:
                 limit = int(limit_str)
