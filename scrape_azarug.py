@@ -12,7 +12,8 @@ sys_path = os.path.dirname(os.path.abspath(__file__))
 if sys_path not in sys.path:
     sys.path.append(sys_path)
 
-from config import settings
+from config.settings import OUTPUT_DIR
+from scrape_custom_film import extract_iframe_from_page
 
 init(autoreset=True)
 logger = logging.getLogger(__name__)
@@ -157,8 +158,6 @@ def extract_movie_details(movie: dict) -> dict:
             if ep_url and ep_title:
                 episodes.append({"label": ep_title, "url": ep_url, "video_embeds": []})
 
-    from scrape_custom_film import extract_iframe_from_page
-
     if episodes:
         # Jika ada episode, kita biarkan logic scraping paralel diurus oleh caller
         # Tapi untuk simpelnya, kita cukup list episodenya di sini.
@@ -238,7 +237,6 @@ def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_pro
             # Tambahan: Jika ini adalah Series (punya episodes), kita ekstrak iframenya secara paralel!
             if detailed_movie.get("episodes"):
                 ep_list = detailed_movie["episodes"]
-                from scrape_custom_film import extract_iframe_from_page
                 
                 # Gunakan 3 thread per film untuk episode agar komputer tidak lag parah
                 with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex_ep:
@@ -284,9 +282,32 @@ def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_pro
     return output_data
 
 if __name__ == "__main__":
+    import os
+    import json
+    import time
+    from colorama import Fore, Style
+    from utils import get_html, ok, info, err, OUTPUT_DIR
+
     url = "https://azarug.org/"
     res = scrape_azarug(url, limit=2, show_progress=True)
     
     if res and res["data"]:
-        print("\\n{Fore.YELLOW}Preview Detail Pertama:{Style.RESET_ALL}")
+        safe_name = f"azarug_{int(time.time())}"
+        if not os.path.exists(OUTPUT_DIR):
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            
+        full_path = os.path.join(OUTPUT_DIR, safe_name + ".json")
+        with open(full_path, "w", encoding="utf-8") as f:
+            json.dump(res, f, ensure_ascii=False, indent=2) # Changed output_data to res
+
+        size_kb = round(os.path.getsize(full_path) / 1024, 1)
+        
+        print(f"\n  {Fore.GREEN}═════════════════════════════════════════════════════════")
+        print(f"  ✓  AZARUG SCRAPE BERHASIL")
+        print(f"  ✓  Jumlah data: {len(res['data'])} item") # Changed results to res['data']
+        print(f"  ✓  File: {full_path}")
+        print(f"  ═════════════════════════════════════════════════════════{Style.RESET_ALL}\n")
+        
+        print(f"\n{Fore.YELLOW}Preview Detail Pertama:{Style.RESET_ALL}")
         print(json.dumps(res["data"][0], indent=2, ensure_ascii=False))
+
