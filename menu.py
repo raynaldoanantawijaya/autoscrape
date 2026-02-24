@@ -1258,34 +1258,7 @@ def _run_zeldaeternity_submenu():
         )
 
 
-def _run_azarug_submenu():
-    """Submenu interaktif khusus untuk Azarug."""
-    print_header("🎬 AZARUG SCRAPER")
-    url = ask("Masukkan URL situs Azarug (contoh: https://azarug.org/ atau kategori spesifik)", "https://azarug.org/")
-    
-    presets = {
-        "1": {"label": "30 film", "count": 30, "pages": 2},
-        "2": {"label": "100 film", "count": 100, "pages": 6},
-        "3": {"label": "Semua / Custom", "count": 500, "pages": 25}
-    }
-    
-    print(f"\n  {Fore.CYAN}Pilih batas jumlah film:{Style.RESET_ALL}")
-    for k, v in presets.items():
-        print(f"    {Fore.YELLOW}{k}{Style.RESET_ALL}. {v['label']} (max {v['pages']} halaman)")
-        
-    choice = ask("Pilihan", "1")
-    if choice not in presets:
-        err("Pilihan tidak valid")
-        return
-        
-    num = presets[choice]["count"]
-    pages = presets[choice]["pages"]
-    
-    print(f"\n  {Fore.CYAN}Mulai mengekstrak {num} film dari {url}...{Style.RESET_ALL}")
-    
-    from scrape_azarug import scrape_azarug
-    res = scrape_azarug(url, limit=num, max_pages=pages, show_progress=True)
-    
+def _save_azarug_result(res):
     if res and res.get("data"):
         timestamp = int(time.time())
         out_path = os.path.join(OUTPUT_DIR, f"azarug_{timestamp}.json")
@@ -1298,6 +1271,94 @@ def _run_azarug_submenu():
         info(f"Total Film  : {res['metadata']['total_items']}")
     else:
         err("Scraping gagal atau tidak menemukan film.")
+
+def _run_azarug_submenu():
+    """Submenu interaktif khusus untuk Azarug."""
+    print_header("🎬 AZARUG SCRAPER")
+    
+    print(f"""
+  Menu Azarug:
+
+    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — 1 judul (masukkan URL)
+    {Fore.YELLOW}2{Style.RESET_ALL}. Scrape Banyak Film — Pilih jumlah
+    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Kategori — Movie / TV Series / Genre
+    {Fore.YELLOW}0{Style.RESET_ALL}. Kembali
+""")
+
+    choice = ask("Pilihan (0-3)", "2")
+
+    if choice == "0":
+        return
+        
+    elif choice == "1":
+        url = ask("Masukkan URL detail film Azarug")
+        if not url:
+            return
+        from scrape_azarug import scrape_azarug
+        res = scrape_azarug(url, limit=1, max_pages=1, show_progress=True)
+        _save_azarug_result(res)
+
+    elif choice == "2":
+        url = ask("Masukkan URL situs Azarug (contoh: https://azarug.org/)", "https://azarug.org/")
+        presets = {
+            "1": {"label": "30 film", "count": 30, "pages": 2},
+            "2": {"label": "100 film", "count": 100, "pages": 6},
+            "3": {"label": "Semua / Custom", "count": 500, "pages": 25}
+        }
+        
+        print(f"\n  {Fore.CYAN}Pilih batas jumlah film:{Style.RESET_ALL}")
+        for k, v in presets.items():
+            print(f"    {Fore.YELLOW}{k}{Style.RESET_ALL}. {v['label']} (max {v['pages']} halaman)")
+            
+        qty_choice = ask("Pilihan", "1")
+        if qty_choice not in presets:
+            err("Pilihan tidak valid")
+            return
+            
+        num = presets[qty_choice]["count"]
+        pages = presets[qty_choice]["pages"]
+        
+        print(f"\n  {Fore.CYAN}Mulai mengekstrak {num} film dari {url}...{Style.RESET_ALL}")
+        
+        from scrape_azarug import scrape_azarug
+        res = scrape_azarug(url, limit=num, max_pages=pages, show_progress=True)
+        _save_azarug_result(res)
+
+    elif choice == "3":
+        categories = [
+            ("movie", "Movie"),
+            ("tv-series", "TV Series"),
+            ("korean", "Drama Korea"),
+            ("anime", "Anime"),
+            ("action", "Action"),
+        ]
+        print(f"\n  {Fore.CYAN}Kategori / Genre:{Style.RESET_ALL}")
+        for i, (_, label) in enumerate(categories, 1):
+            print(f"    {Fore.YELLOW}{i}{Style.RESET_ALL}. {label}")
+        cat_choice = ask(f"Pilih (1-{len(categories)})", "1")
+        try:
+            cat_slug, cat_name = categories[int(cat_choice) - 1]
+        except (ValueError, IndexError):
+            err("Pilihan tidak valid.")
+            return
+
+        num_str = ask("Berapa judul? (kosong = 30)", "30")
+        try:
+            num = int(num_str) if num_str else 30
+        except ValueError:
+            num = 30
+
+        url = f"https://azarug.org/category/{cat_slug}/"
+        if cat_slug in ["action", "anime"]:
+             url = f"https://azarug.org/genre/{cat_slug}/"
+             
+        pages = (num + 19) // 20
+        
+        print(f"\n  {Fore.CYAN}Mulai mengekstrak {num} film dari {url}...{Style.RESET_ALL}")
+        
+        from scrape_azarug import scrape_azarug
+        res = scrape_azarug(url, limit=num, max_pages=pages, show_progress=True)
+        _save_azarug_result(res)
 
 
 def run_scrape_film():
