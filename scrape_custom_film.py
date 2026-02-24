@@ -64,6 +64,13 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
                 # Tunggu sedikit agar iframe video memuat
                 page.wait_for_timeout(3000)
 
+                # Klik tombol server untuk memunculkan iframe (Pola Drakorkita / Auto-load)
+                page.evaluate("""() => {
+                    let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
+                    if (btns.length > 0) btns[0].click(); // Klik server pertama
+                }""")
+                page.wait_for_timeout(2000)
+
                 # Ekstrak semua iframe
                 frame_srcs = page.evaluate("""() => {
                     return Array.from(document.querySelectorAll('iframe')).map(f => f.src);
@@ -84,6 +91,70 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
             return []
             
     return []
+
+def heuristik_cari_episode(page, base_url: str):
+    """Cari link-link yang kemungkinan adalah link episode (Gabungan Drakorkita & GMR Theme)."""
+    return page.evaluate("""() => {
+        let results = [];
+        let seen = new Set();
+        
+        // Pola Zelda/Azarug (.gmr-listseries a) dan pola umum episode list
+        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a');
+        
+        for (let a of links) {
+            let url = a.href;
+            if (url && !seen.has(url)) {
+                seen.add(url);
+                results.push({label: a.innerText.trim() || 'Episode', url: url});
+            }
+        }
+        return results;
+    }""")
+
+def heuristik_ekstrak_metadata(page):
+    """Ekstrak Metadata Universal (Sinopsis, Genre, Cast, Download Links)."""
+    return page.evaluate("""() => {
+        let meta = {
+            sinopsis: '',
+            genres: [],
+            cast: [],
+            rating: '',
+            download_links: []
+        };
+        
+        // 1. Sinopsis
+        let desc = document.querySelector('.entry-content p, .desc, .sinopsis, [itemprop="description"]');
+        if (desc) {
+            meta.sinopsis = desc.innerText.trim().substring(0, 500);
+        }
+        
+        // 2. Genres & Cast & Rating
+        document.querySelectorAll('.gmr-moviedata, .infox, .spe, .meta-data').forEach(el => {
+            let text = el.innerText.toLowerCase();
+            if (text.includes('genre')) {
+                let links = el.querySelectorAll('a');
+                if (links.length) meta.genres = Array.from(links).map(a => a.innerText.trim());
+            }
+            if (text.includes('cast') || text.includes('aktor') || text.includes('pemain') || text.includes('bintang')) {
+                let links = el.querySelectorAll('a');
+                if (links.length) meta.cast = Array.from(links).map(a => a.innerText.trim());
+            }
+            if (text.includes('rating') || text.includes('imdb')) {
+                let m = el.innerText.match(/[\\d.]+/);
+                if (m) meta.rating = m[0];
+            }
+        });
+        
+        // 3. Download Links
+        document.querySelectorAll('#download a, .gmr-download-list a, .soraddlx a, .dl-box a').forEach(a => {
+            if (a.href && !a.href.includes('javascript') && !a.href.includes('klik.best')) {
+                let text = a.innerText.trim();
+                meta.download_links.push({ text: text || 'Download', url: a.href });
+            }
+        });
+        
+        return meta;
+    }""")
 
 def heuristik_cari_film_list(page, base_url: str):
     """Cari link yang kemungkinan menuju ke halaman Film/Drama dari halaman beranda/kategori."""
@@ -280,7 +351,19 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                     if real_title:
                         detail_data["title"] = real_title.split('-')[0].split('|')[0].strip()
                         
+                    # Ekstrak Metadata
+                    metadata = heuristik_ekstrak_metadata(page_local)
+                    detail_data.update(metadata)
+                        
                     ep_links = heuristik_cari_episode(page_local, f_url)
+                    
+                    # Simulasi klik server untuk video utama
+                    page_local.evaluate("""() => {
+                        let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
+                        if (btns.length > 0) btns[0].click();
+                    }""")
+                    page_local.wait_for_timeout(2000)
+                    
                     frame_srcs = page_local.evaluate("""() => Array.from(document.querySelectorAll('iframe')).map(f => f.src);""")
                     main_iframes = [s for s in frame_srcs if not _is_ad_iframe(s)]
                     detail_data["video_embeds"] = main_iframes
