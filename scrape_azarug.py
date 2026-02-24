@@ -144,15 +144,32 @@ def extract_movie_details(movie: dict) -> dict:
         elif "rilis" in label or "release" in label:
             movie["release_date"] = val
 
-    # 3. Ekstrak Video Player Embeds (Iframes)
-    # Biasanya pemain video diletakkan dalam iframe atau shortcode
-    iframes = soup.find_all("iframe")
+    # 3. Ekstrak Video Player Embeds (Iframes) dengan Headless Playwright
     player_links = []
-    for iframe in iframes:
-        src = iframe.get("src", "")
-        # Filter iframe iklan umum
-        if src and "youtube" not in src and "facebook" not in src and "ads" not in src:
-            player_links.append(src)
+    
+    # Deteksi Episode List (jika ini halaman series)
+    episodes = []
+    ep_list = soup.select(".gmr-listseries a")
+    if ep_list:
+        for a in ep_list:
+            ep_url = a.get("href")
+            ep_title = a.text.strip()
+            if ep_url and ep_title:
+                episodes.append({"label": ep_title, "url": ep_url, "video_embeds": []})
+
+    from scrape_custom_film import extract_iframe_from_page
+
+    if episodes:
+        # Jika ada episode, kita biarkan logic scraping paralel diurus oleh caller
+        # Tapi untuk simpelnya, kita cukup list episodenya di sini.
+        movie["episodes"] = episodes
+    else:
+        # Panggil fungsi Playwright tangguh kita untuk mengekstrak iframe dari halaman ini
+        try:
+            player_links = extract_iframe_from_page(url)
+        except Exception as e:
+            logger.error(f"Error playwright di {url}: {e}")
+            
     movie["video_players"] = player_links
 
     # 4. Ekstrak Download Links
@@ -217,11 +234,37 @@ def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_pro
         
         for future in concurrent.futures.as_completed(future_to_movie):
             detailed_movie = future.result()
+            
+            # Tambahan: Jika ini adalah Series (punya episodes), kita ekstrak iframenya secara paralel!
+            if detailed_movie.get("episodes"):
+                ep_list = detailed_movie["episodes"]
+                from scrape_custom_film import extract_iframe_from_page
+                
+                # Gunakan 3 thread per film untuk episode agar komputer tidak lag parah
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex_ep:
+                    def _ep_worker(ep):
+                        ep["video_embeds"] = extract_iframe_from_page(ep["url"])
+                        
+                    future_eps = [ex_ep.submit(_ep_worker, ep) for ep in ep_list]
+                    concurrent.futures.wait(future_eps)
+                    
             results.append(detailed_movie)
+            
             if show_progress:
-                # Clean logging format for async tasks
                 title_short = detailed_movie['title'][:50] + "..." if len(detailed_movie['title']) > 50 else detailed_movie['title']
-                print(f"  {Fore.GREEN}✓{Style.RESET_ALL} {title_short}")
+                
+                # Log Summary
+                v_count = len(detailed_movie.get("video_players", []))
+                e_count = len(detailed_movie.get("episodes", []))
+                dl_count = len(detailed_movie.get("download_links", []))
+                
+                sum_parts = []
+                if e_count: sum_parts.append(f"📺 {e_count} Eps")
+                if v_count: sum_parts.append(f"🎬 {v_count} Vid")
+                if dl_count: sum_parts.append(f"📥 {dl_count} DL")
+                
+                summary = " | ".join(sum_parts)
+                print(f"  {Fore.GREEN}✓{Style.RESET_ALL} [{len(results)}/{len(movies_to_process)}] {title_short} — {summary}")
 
     elapsed = round(time.time() - start_time, 1)
     if show_progress:
