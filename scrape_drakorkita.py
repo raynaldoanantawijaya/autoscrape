@@ -869,11 +869,134 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
                 log.warning("\n⚠ Dihentikan oleh user (Ctrl+C)")
                 executor.shutdown(wait=False, cancel_futures=True)
 
+        log.info(f"\n✓ Scraping paralel selesai\n")
+
+        # ══════════════════════════════════════════════════════════
+        # LANGKAH 4: VERIFIKASI — Pastikan 100% episode terisi
+        # ══════════════════════════════════════════════════════════
+        MAX_VERIFY_ROUNDS = 3
+
+        for verify_round in range(1, MAX_VERIFY_ROUNDS + 1):
+            # Cari episode yang kosong
+            missing = []
+            for detail in details:
+                url = detail.get("_detail_url", detail.get("url", ""))
+                title = detail.get("title", "?")
+                ep_embeds = detail.get("episode_embeds", [])
+                if not ep_embeds:
+                    continue
+
+                empty_eps = []
+                for ep_idx, ep in enumerate(ep_embeds):
+                    if not ep.get("video_embed"):
+                        empty_eps.append((ep_idx, ep.get("episode", "?")))
+
+                if empty_eps:
+                    missing.append({
+                        "detail": detail,
+                        "url": url,
+                        "title": title,
+                        "empty_eps": empty_eps,
+                    })
+
+            if not missing:
+                log.info(f"✅ VERIFIKASI: Semua episode lengkap 100%!")
+                break
+
+            total_missing = sum(len(m["empty_eps"]) for m in missing)
+            log.info(f"🔍 VERIFIKASI Ronde {verify_round}/{MAX_VERIFY_ROUNDS}: "
+                     f"{total_missing} episode kosong di {len(missing)} judul. Retry...")
+
+            for m in missing:
+                detail = m["detail"]
+                url = m["url"]
+                title = m["title"]
+                empty_eps = m["empty_eps"]
+
+                log.info(f"  🔄 {title} — retry {len(empty_eps)} episode: "
+                         f"{', '.join(e[1] for e in empty_eps)}")
+
+                try:
+                    from playwright.sync_api import sync_playwright
+
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch()
+                        ctx = browser.new_context(
+                            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                       "AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+                        )
+                        page = ctx.new_page()
+
+                        try:
+                            page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                        except Exception:
+                            pass
+
+                        # Tunggu tombol episode
+                        for _ in range(20):
+                            cnt = page.evaluate(
+                                """() => document.querySelectorAll('.btn-svr').length""")
+                            if cnt > 0:
+                                break
+                            page.wait_for_timeout(1000)
+
+                        ad_domains = ['dtscout.com', 'doubleclick', 'googlesyndication', 'adnxs.com']
+
+                        for ep_idx, ep_text in empty_eps:
+                            # Klik tombol episode yang spesifik
+                            page.evaluate(f"""(idx) => {{
+                                const btns = document.querySelectorAll('.btn-svr');
+                                if (btns[idx]) btns[idx].click();
+                            }}""", ep_idx)
+
+                            # Tunggu dan ambil iframe dengan retry
+                            src = ""
+                            for _retry in range(3):
+                                page.wait_for_timeout(3000)
+                                src = page.evaluate("""() => {
+                                    const iframe = document.querySelector('iframe');
+                                    return (iframe && iframe.src && !iframe.src.startsWith('about:'))
+                                           ? iframe.src : '';
+                                }""")
+                                is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
+                                if src and not is_ad:
+                                    break
+                                # Re-click
+                                page.evaluate(f"""(idx) => {{
+                                    const btns = document.querySelectorAll('.btn-svr');
+                                    if (btns[idx]) btns[idx].click();
+                                }}""", ep_idx)
+
+                            is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
+                            clean_src = src if (src and not is_ad) else ""
+
+                            if clean_src:
+                                detail["episode_embeds"][ep_idx]["video_embed"] = clean_src
+                                log.info(f"    ✓ Ep {ep_text}: {clean_src[:50]}...")
+                            else:
+                                log.warning(f"    ✗ Ep {ep_text}: masih gagal")
+
+                        browser.close()
+
+                except Exception as e:
+                    log.error(f"  ✗ Verifikasi {title} error: {e}")
+        else:
+            # Setelah semua ronde selesai, tampilkan sisa yang masih kosong
+            remaining = 0
+            for detail in details:
+                for ep in detail.get("episode_embeds", []):
+                    if not ep.get("video_embed"):
+                        remaining += 1
+            if remaining > 0:
+                log.warning(f"⚠ {remaining} episode masih kosong setelah {MAX_VERIFY_ROUNDS} ronde verifikasi.")
+            else:
+                log.info(f"✅ VERIFIKASI: Semua episode lengkap 100% setelah {MAX_VERIFY_ROUNDS} ronde!")
+
         # Hapus field sementara
         for d in details:
             d.pop("_detail_url", None)
 
-        log.info(f"\n✓ Semua episode selesai di-scrape\n")
+        log.info(f"\n✓ Semua episode selesai di-scrape & diverifikasi\n")
 
     # Step 4: Simpan semua detail
     full_path = os.path.join(OUTPUT_DIR, f"drakorkita_full_{timestamp}.json")
