@@ -494,6 +494,36 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int, quiet: bool = 
             browser_path = candidate
             break
 
+    # Retry seluruh sesi Playwright jika terkena "Execution context destroyed"
+    # (terjadi saat iklan/popup me-navigate halaman saat Playwright bekerja)
+    for _pw_attempt in range(3):
+        try:
+            episodes_data = _scrape_episodes_playwright(
+                detail_url, total_eps, quiet, browser_path)
+            break
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "execution context" in err_msg or "target closed" in err_msg:
+                if not quiet:
+                    log.warning(f"  ⚠ Browser crash (percobaan {_pw_attempt+1}/3): {e}")
+                if _pw_attempt < 2:
+                    if not quiet:
+                        log.info(f"  🔄 Restart browser dan coba ulang...")
+                    time.sleep(2)
+                    continue
+            # Error lain atau percobaan terakhir → raise
+            raise
+
+    return episodes_data
+
+
+def _scrape_episodes_playwright(detail_url: str, total_eps: int,
+                                 quiet: bool, browser_path: str | None) -> list[dict]:
+    """Internal: logika Playwright utama, dipanggil oleh scrape_episodes_with_browser."""
+    from playwright.sync_api import sync_playwright
+
+    episodes_data = []
+
     with sync_playwright() as p:
         launch_args = {"headless": True}
         if browser_path:
@@ -877,15 +907,24 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
         MAX_VERIFY_ROUNDS = 3
 
         for verify_round in range(1, MAX_VERIFY_ROUNDS + 1):
-            # Cari episode yang kosong
+            # Cari episode yang kosong DAN film yang gagal total
             missing = []
+            fully_failed = []
             for detail in details:
                 url = detail.get("_detail_url", detail.get("url", ""))
                 title = detail.get("title", "?")
                 ep_embeds = detail.get("episode_embeds", [])
-                if not ep_embeds:
+
+                # Film yang gagal total (episode_embeds kosong/tidak ada)
+                if not ep_embeds or (isinstance(ep_embeds, list) and len(ep_embeds) == 0):
+                    fully_failed.append({
+                        "detail": detail,
+                        "url": url,
+                        "title": title,
+                    })
                     continue
 
+                # Film yang sebagian episode-nya kosong
                 empty_eps = []
                 for ep_idx, ep in enumerate(ep_embeds):
                     if not ep.get("video_embed"):
@@ -899,14 +938,33 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
                         "empty_eps": empty_eps,
                     })
 
-            if not missing:
+            if not missing and not fully_failed:
                 log.info(f"✅ VERIFIKASI: Semua episode lengkap 100%!")
                 break
 
             total_missing = sum(len(m["empty_eps"]) for m in missing)
             log.info(f"🔍 VERIFIKASI Ronde {verify_round}/{MAX_VERIFY_ROUNDS}: "
-                     f"{total_missing} episode kosong di {len(missing)} judul. Retry...")
+                     f"{total_missing} episode kosong di {len(missing)} judul, "
+                     f"{len(fully_failed)} judul gagal total. Retry...")
 
+            # Re-scrape film yang gagal total (dari awal)
+            for ff in fully_failed:
+                detail = ff["detail"]
+                url = ff["url"]
+                title = ff["title"]
+                ep_count = detail.get("total_episodes", 0) or 0
+
+                log.info(f"  🔄 {title} — re-scrape dari awal...")
+                try:
+                    ep_data = scrape_episodes_with_browser(url, max(ep_count, 20), quiet=False)
+                    detail["episode_embeds"] = ep_data
+                    valid = sum(1 for e in ep_data if e.get("video_embed"))
+                    label = "🎬 Movie" if len(ep_data) <= 1 else f"📺 {valid}/{len(ep_data)} ep"
+                    log.info(f"    ✓ {title} — {label}")
+                except Exception as e:
+                    log.error(f"    ✗ {title} — Error: {e}")
+
+            # Re-scrape episode spesifik yang kosong
             for m in missing:
                 detail = m["detail"]
                 url = m["url"]
