@@ -15,6 +15,8 @@ import json
 import time
 import logging
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -35,6 +37,15 @@ HEADERS = {
 }
 
 SESSION = requests.Session()
+retry_strategy = Retry(
+    total=3,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS"],
+    backoff_factor=1
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+SESSION.mount("http://", adapter)
+SESSION.mount("https://", adapter)
 SESSION.headers.update(HEADERS)
 
 
@@ -208,12 +219,21 @@ def scrape_detail(detail_url: str) -> dict | None:
             result["title"] = ""
 
     # Bersihkan prefix umum dari title
-    title = result["title"]
+    title = result.get("title", "")
     for prefix in ["Nonton ", "Download "]:
         if title.startswith(prefix):
             title = title[len(prefix):]
     # Hapus "Subtitle Indonesia" di akhir
     title = re.sub(r'\s*Subtitle Indonesia\s*$', '', title)
+    
+    # Fallback Slug Parser jika title kosong
+    if not title:
+        slug = detail_url.rstrip("/").split("/")[-1]
+        parts = slug.split("-")
+        if len(parts) >= 2 and len(parts[-1]) <= 5 and parts[-1].isalnum():
+            parts = parts[:-1]
+        title = " ".join(parts).title()
+
     result["title"] = title.strip()
 
     # ── Judul Alternatif / Korea ──
@@ -494,7 +514,7 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
         }""")
 
         if not ep_info:
-            # Fallback: cari tombol angka 1-N
+            # Fallback: cari tombol angka 1-N (tanpa strict check thd totalEps barangkali metadata salah)
             ep_info = page.evaluate("""(totalEps) => {
                 const results = [];
                 const buttons = document.querySelectorAll('button, a.btn');
@@ -502,7 +522,7 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                     const txt = btn.textContent.trim();
                     if (/^\\d+$/.test(txt)) {
                         const num = parseInt(txt);
-                        if (num >= 1 && num <= totalEps) {
+                        if (num >= 1) {
                             results.push({index: results.length, text: txt});
                         }
                     }
