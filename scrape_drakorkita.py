@@ -462,8 +462,11 @@ def scrape_detail(detail_url: str) -> dict | None:
 # LANGKAH 3: Scrape episode embed dengan Playwright (opsional, untuk video URL)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
-    """Gunakan Playwright untuk klik setiap episode dan ambil iframe src."""
+def scrape_episodes_with_browser(detail_url: str, total_eps: int, quiet: bool = False) -> list[dict]:
+    """Gunakan Playwright untuk klik setiap episode dan ambil iframe src.
+    Args:
+        quiet: Jika True, tidak menampilkan log per-episode (untuk mode paralel).
+    """
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -619,7 +622,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
 
         if not ep_info:
             if initial_src and not _is_ad(initial_src):
-                log.info(f"  Film Single / Movie terdeteksi. Menyimpan iframe utama...")
+                if not quiet:
+                    log.info(f"  Film Single / Movie terdeteksi. Menyimpan iframe utama...")
                 episodes_data.append({
                     "episode": "1",
                     "video_embed": initial_src,
@@ -627,7 +631,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 browser.close()
                 return episodes_data
             else:
-                log.warning(f"  Tidak ada tombol episode & tidak ada iframe video ditemukan.")
+                if not quiet:
+                    log.warning(f"  Tidak ada tombol episode & tidak ada iframe video ditemukan.")
                 browser.close()
                 return []
 
@@ -637,7 +642,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 "episode": ep_info[0]["text"] if ep_info else "1",
                 "video_embed": initial_src,
             })
-            log.info(f"  Ep {ep_info[0]['text'] if ep_info else '1'}: {initial_src[:60]}...")
+            if not quiet:
+                log.info(f"  Ep {ep_info[0]['text'] if ep_info else '1'}: {initial_src[:60]}...")
 
         # ── Klik setiap episode tombol ──
         consecutive_fails = 0
@@ -658,7 +664,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 }}""", i)
 
                 if not clicked:
-                    log.warning(f"  Ep {ep['text']}: tombol tidak ditemukan")
+                    if not quiet:
+                        log.warning(f"  Ep {ep['text']}: tombol tidak ditemukan")
                     continue
 
                 # Tunggu + retry jika iklan atau kosong (max 3x)
@@ -671,7 +678,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                         break  # URL valid!
 
                     if _is_ad(src):
-                        log.warning(f"  Ep {ep['text']}: iklan terdeteksi, retry...")
+                        if not quiet:
+                            log.warning(f"  Ep {ep['text']}: iklan terdeteksi, retry...")
 
                     # Re-click tombol episode
                     page.evaluate(f"""(idx) => {{
@@ -689,7 +697,8 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 # Jika 3 episode berturut-turut gagal → halaman terkena hijack iklan
                 # Reload halaman dan coba ulang dari episode ini
                 if consecutive_fails >= 3:
-                    log.warning(f"  ⚠ 3 episode berturut-turut gagal. Reload halaman...")
+                    if not quiet:
+                        log.warning(f"  ⚠ 3 episode berturut-turut gagal. Reload halaman...")
                     _reload_and_wait()
                     consecutive_fails = 0
 
@@ -705,10 +714,12 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                     "episode": ep["text"],
                     "video_embed": clean_src or "",
                 })
-                log.info(f"  Ep {ep['text']}: {clean_src[:60]}..." if clean_src else f"  Ep {ep['text']}: no embed")
+                if not quiet:
+                    log.info(f"  Ep {ep['text']}: {clean_src[:60]}..." if clean_src else f"  Ep {ep['text']}: no embed")
 
             except Exception as e:
-                log.warning(f"  Ep {ep['text']} error: {e}")
+                if not quiet:
+                    log.warning(f"  Ep {ep['text']} error: {e}")
                 episodes_data.append({"episode": ep["text"], "video_embed": "", "error": str(e)})
 
         # Ambil semua server names
@@ -815,9 +826,9 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
         from concurrent.futures import ThreadPoolExecutor, as_completed
         import threading
 
-        PARALLEL_WORKERS = 3
+        PARALLEL_WORKERS = min(len(details), 5)  # Max 5 browser sekaligus
         log.info(f"LANGKAH 3: Scrape episode embeds PARALEL ({PARALLEL_WORKERS} browser)...")
-        log.info(f"  {len(details)} judul akan di-scrape episode-nya secara bersamaan.\n")
+        log.info(f"  📋 {len(details)} judul antrian, {PARALLEL_WORKERS} browser bekerja bersamaan.\n")
 
         lock = threading.Lock()
         completed = [0]
@@ -830,12 +841,16 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
             ep_count = detail.get("total_episodes", 0) or 0
 
             try:
-                ep_data = scrape_episodes_with_browser(url, max(ep_count, 20))
+                ep_data = scrape_episodes_with_browser(url, max(ep_count, 20), quiet=True)
                 detail["episode_embeds"] = ep_data
+
+                # Hitung berapa episode yang benar-benar punya embed
+                valid = sum(1 for e in ep_data if e.get("video_embed"))
+                label = "🎬 Movie" if len(ep_data) <= 1 else f"📺 {valid}/{len(ep_data)} ep"
 
                 with lock:
                     completed[0] += 1
-                    log.info(f"  ✓ [{completed[0]}/{len(details)}] {title} — {len(ep_data)} episode")
+                    log.info(f"  ✓ [{completed[0]}/{len(details)}] {title} — {label}")
 
             except Exception as e:
                 with lock:
