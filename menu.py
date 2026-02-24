@@ -1299,24 +1299,32 @@ def _run_azarug_submenu():
         _save_azarug_result(res)
 
     elif choice == "2":
-        url = ask("Masukkan URL situs Azarug (contoh: https://azarug.org/)", "https://azarug.org/")
+        url = "https://azarug.org/"
         presets = {
             "1": {"label": "30 film", "count": 30, "pages": 2},
             "2": {"label": "100 film", "count": 100, "pages": 6},
-            "3": {"label": "Semua / Custom", "count": 500, "pages": 25}
+            "3": {"label": "Semua / Custom", "count": 0, "pages": 0}
         }
         
         print(f"\n  {Fore.CYAN}Pilih batas jumlah film:{Style.RESET_ALL}")
         for k, v in presets.items():
-            print(f"    {Fore.YELLOW}{k}{Style.RESET_ALL}. {v['label']} (max {v['pages']} halaman)")
+            print(f"    {Fore.YELLOW}{k}{Style.RESET_ALL}. {v['label']} " + (f"(max {v['pages']} halaman)" if v['pages'] else ""))
             
         qty_choice = ask("Pilihan", "1")
         if qty_choice not in presets:
             err("Pilihan tidak valid")
             return
             
-        num = presets[qty_choice]["count"]
-        pages = presets[qty_choice]["pages"]
+        if qty_choice == "3":
+            custom_str = ask("Masukkan jumlah film khusus (contoh: 500)", "500")
+            try:
+                num = int(custom_str)
+            except ValueError:
+                num = 500
+            pages = (num + 19) // 20
+        else:
+            num = presets[qty_choice]["count"]
+            pages = presets[qty_choice]["pages"]
         
         print(f"\n  {Fore.CYAN}Mulai mengekstrak {num} film dari {url}...{Style.RESET_ALL}")
         
