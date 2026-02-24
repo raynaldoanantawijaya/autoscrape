@@ -1661,19 +1661,17 @@ def run_view_results():
             tables = inner.get("tables", [])
         if tables:
             head(f"Tabel ({len(tables)} ditemukan):")
-            for ti, tbl in enumerate(tables[:5], 1):
+            for ti, tbl in enumerate(tables, 1):
                 headers = tbl.get("headers", [])
                 rows = tbl.get("rows", [])
                 if headers:
                     print(f"\n    {Fore.YELLOW}Tabel {ti}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:8])}")
-                for row in rows[:15]:
+                for row in rows:
                     if isinstance(row, dict):
                         vals = " | ".join(f"{v}" for v in list(row.values())[:8])
                     else:
                         vals = " | ".join(str(c) for c in row[:8])
                     print(f"      {Fore.CYAN}→{Style.RESET_ALL} {vals}")
-                if len(rows) > 15:
-                    print(f"      {Fore.YELLOW}... +{len(rows)-15} baris lagi{Style.RESET_ALL}")
             print()
 
         # Articles / Berita
@@ -1684,7 +1682,7 @@ def run_view_results():
             articles = data.get("articles", [])
         if articles:
             head(f"Artikel/Berita ({len(articles)} item):")
-            for a in articles[:15]:
+            for a in articles:
                 judul = a.get("judul", a.get("title", ""))[:80]
                 url_art = a.get("url", "")[:70]
                 tgl = a.get("tanggal", a.get("date", ""))
@@ -1694,22 +1692,18 @@ def run_view_results():
                         print(f"      {Fore.YELLOW}{tgl}{Style.RESET_ALL}")
                     if url_art:
                         print(f"      {Fore.BLUE}{url_art}{Style.RESET_ALL}")
-            if len(articles) > 15:
-                print(f"    {Fore.YELLOW}... +{len(articles)-15} item lagi{Style.RESET_ALL}")
             print()
 
         # Stocks
         stocks = data.get("stocks", [])
         if stocks:
             head(f"Stocks ({len(stocks)} ticker):")
-            for s in stocks[:15]:
+            for s in stocks:
                 if isinstance(s, dict):
                     sym = s.get("symbol", s.get("ticker", "?"))
                     name_ = s.get("name", s.get("companyName", ""))
                     price = s.get("price", s.get("lastPrice", "?"))
                     print(f"    {Fore.GREEN}{sym:>6}{Style.RESET_ALL}  {name_[:40]:40}  ${price}")
-            if len(stocks) > 15:
-                print(f"    {Fore.YELLOW}... +{len(stocks)-15} ticker lagi{Style.RESET_ALL}")
             print()
 
         # Captured APIs
@@ -1718,7 +1712,7 @@ def run_view_results():
             apis = inner.get("captured_apis", {})
         if apis:
             head(f"API Endpoint Tertangkap ({len(apis)}):")
-            for api_url in list(apis.keys())[:10]:
+            for api_url in list(apis.keys()):
                 short = api_url[:90] + ("..." if len(api_url) > 90 else "")
                 body = apis[api_url]
                 body_type = type(body).__name__
