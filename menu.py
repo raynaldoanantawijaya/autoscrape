@@ -1857,18 +1857,7 @@ def run_view_results():
 # MAIN MENU
 # ══════════════════════════════════════════════════════════════════════════════
 
-def show_status_bar():
-    """Tampilkan status file output terbaru."""
-    files = sorted(glob.glob(os.path.join(OUTPUT_DIR, "*.json")),
-                   key=os.path.getmtime, reverse=True)[:3]
-    if files:
-        print(f"  {Fore.YELLOW}Output terbaru:{Style.RESET_ALL}")
-        for f in files:
-            ts  = os.path.getmtime(f)
-            dt  = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-            sz  = round(os.path.getsize(f) / 1024, 1)
-            print(f"    {Fore.CYAN}{dt}{Style.RESET_ALL}  {os.path.basename(f)} ({sz}KB)")
-        print()
+
 
 MENU_OPTIONS = {
     "1": ("🥇  Scrape Harga Emas",        run_scrape_emas),
@@ -1887,7 +1876,6 @@ def main_menu():
     while True:
         clear()
         print(BANNER)
-        show_status_bar()
 
         print(f"  {Fore.CYAN}MENU UTAMA:{Style.RESET_ALL}\n")
         for key, (label, _) in MENU_OPTIONS.items():
