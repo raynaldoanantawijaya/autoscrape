@@ -500,7 +500,19 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
         except Exception:
             pass
 
-        page.wait_for_timeout(3000)
+        # Smart-wait: tunggu hingga .btn-svr atau iframe muncul (max 15 detik)
+        for _attempt in range(15):
+            ready = page.evaluate("""() => {
+                const btns = document.querySelectorAll('.btn-svr');
+                const iframe = document.querySelector('iframe');
+                return btns.length > 0 || (iframe && iframe.src && !iframe.src.startsWith('about:'));
+            }""")
+            if ready:
+                break
+            page.wait_for_timeout(1000)
+        else:
+            # Beri waktu tambahan 2 detik jika belum muncul juga
+            page.wait_for_timeout(2000)
 
         # Ambil daftar episode dengan JavaScript (cari .btn-svr buttons)
         ep_info = page.evaluate("""() => {
