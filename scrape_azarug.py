@@ -186,10 +186,6 @@ def extract_movie_details(movie: dict) -> dict:
 def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_progress=True) -> dict:
     """Scrape penuh Azarug (Daftar -> Detail -> JSON)."""
     
-    if show_progress:
-        print(f"\\n{Fore.CYAN}=== Memulai Azarug Scraper ==={Style.RESET_ALL}")
-        info(f"Target: {target_url}")
-        
     start_time = time.time()
     
     # Tahap 1: Ekstraksi Daftar Film
@@ -223,7 +219,9 @@ def scrape_azarug(target_url: str, limit: int = 10, max_pages: int = 1, show_pro
             detailed_movie = future.result()
             results.append(detailed_movie)
             if show_progress:
-                info(f"✓ Berhasil memuat detail: {detailed_movie['title']}")
+                # Clean logging format for async tasks
+                title_short = detailed_movie['title'][:50] + "..." if len(detailed_movie['title']) > 50 else detailed_movie['title']
+                print(f"  {Fore.GREEN}✓{Style.RESET_ALL} {title_short}")
 
     elapsed = round(time.time() - start_time, 1)
     if show_progress:
