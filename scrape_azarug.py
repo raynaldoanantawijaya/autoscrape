@@ -12,7 +12,8 @@ sys_path = os.path.dirname(os.path.abspath(__file__))
 if sys_path not in sys.path:
     sys.path.append(sys_path)
 
-from config.settings import OUTPUT_DIR
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hasil_scrape")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 from scrape_custom_film import extract_iframe_from_page
 
 init(autoreset=True)
