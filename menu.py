@@ -1485,15 +1485,21 @@ def run_view_results():
         """Tampilkan detail lengkap film/drama."""
         # Cek apakah ini file listing atau full detail
         dramas = data.get("dramas", [])
+        if not dramas:
+            # Cek key 'data' dari output Azarug / scraper generik
+            inner_data = data.get("data", [])
+            if isinstance(inner_data, list):
+                dramas = inner_data
+
         if not dramas and isinstance(data, dict):
             # Mungkin single drama
             if data.get("title"):
                 dramas = [data]
 
         if not dramas:
-            # Tampilkan raw
-            head("Data:")
-            print(f"    {json.dumps(data, indent=2, ensure_ascii=False)[:2000]}")
+            # Tampilkan raw utuh tanpa dipotong
+            head("Data JSON Mentah (Seluruhnya):")
+            print(f"    {json.dumps(data, indent=2, ensure_ascii=False)}")
             return
 
         head(f"Total: {len(dramas)} judul")
@@ -1613,12 +1619,19 @@ def run_view_results():
                         if len(episodes) > 20:
                             print(f"    {Fore.YELLOW}... +{len(episodes)-20} episode lagi{Style.RESET_ALL}")
 
+                    # Video Links Khusus Azarug (video_players)
+                    vidi = drama.get("video_players", [])
+                    if vidi:
+                        print(f"\n  {Fore.CYAN}Video Stream / Players:{Style.RESET_ALL}")
+                        for v in vidi:
+                            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {v}")
+
                     # Download links
                     dl = drama.get("download_links", [])
                     if dl:
                         print(f"\n  {Fore.CYAN}Download:{Style.RESET_ALL}")
                         for link in dl:
-                            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {link.get('text', 'DOWNLOAD')}: {link.get('url', '')}")
+                            print(f"    {Fore.GREEN}→{Style.RESET_ALL} {link.get('description', link.get('text', 'DOWNLOAD'))}: {link.get('url', '')}")
 
                     input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke daftar]{Style.RESET_ALL}")
                     clear()
