@@ -604,20 +604,41 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                     log.warning(f"  Ep {ep['text']}: tombol tidak ditemukan")
                     continue
 
-                # Tunggu iframe update
-                page.wait_for_timeout(2500)
+                # Tunggu iframe update, lalu cek apakah src valid (bukan iklan)
+                # Retry hingga 3x jika dapat URL iklan atau kosong
+                src = ""
+                ad_domains = ['dtscout.com', 'doubleclick', 'googlesyndication', 'adnxs.com']
+                for _retry in range(3):
+                    page.wait_for_timeout(2500)
+                    src = page.evaluate("""() => {
+                        const iframe = document.querySelector('iframe');
+                        return (iframe && iframe.src && !iframe.src.startsWith('about:')) ? iframe.src : '';
+                    }""")
+                    
+                    # Cek apakah URL ini iklan
+                    is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
+                    
+                    if src and not is_ad:
+                        break  # URL valid!
+                    
+                    if is_ad:
+                        log.warning(f"  Ep {ep['text']}: iklan terdeteksi, retry...")
+                    
+                    # Re-click tombol episode
+                    page.evaluate(f"""(idx) => {{
+                        const btns = document.querySelectorAll('.btn-svr');
+                        if (btns[idx]) btns[idx].click();
+                    }}""", i)
 
-                # Ambil iframe src baru via JavaScript
-                src = page.evaluate("""() => {
-                    const iframe = document.querySelector('iframe');
-                    return iframe ? iframe.src : '';
-                }""")
+                # Filter: jangan simpan URL iklan
+                is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
+                clean_src = src if (src and not is_ad) else ""
 
                 episodes_data.append({
                     "episode": ep["text"],
-                    "video_embed": src or "",
+                    "video_embed": clean_src,
                 })
-                log.info(f"  Ep {ep['text']}: {src[:60]}..." if src else f"  Ep {ep['text']}: no embed")
+                log.info(f"  Ep {ep['text']}: {clean_src[:60]}..." if clean_src else f"  Ep {ep['text']}: no embed")
 
             except Exception as e:
                 log.warning(f"  Ep {ep['text']} error: {e}")
@@ -701,10 +722,12 @@ def run_full_scrape(max_pages: int = None, scrape_episodes: bool = False,
                 details.append(detail)
 
                 # Opsional: Scrape episode embeds
-                if scrape_episodes and detail.get("total_episodes", 0) > 0:
-                    log.info(f"  → Scraping {detail['total_episodes']} episode embeds...")
-                    ep_data = scrape_episodes_with_browser(item["detail_url"],
-                                                            detail["total_episodes"])
+                # Selalu coba Playwright meskipun total_episodes=0 di metadata,
+                # karena metadata sering tidak akurat dan halaman bisa tetap punya tombol episode
+                if scrape_episodes:
+                    ep_count = detail.get("total_episodes", 0) or 0
+                    log.info(f"  → Scraping episode embeds (metadata: {ep_count} ep)...")
+                    ep_data = scrape_episodes_with_browser(item["detail_url"], max(ep_count, 20))
                     detail["episode_embeds"] = ep_data
 
             time.sleep(0.3)  # Rate limiting
