@@ -1258,6 +1258,48 @@ def _run_zeldaeternity_submenu():
         )
 
 
+def _run_azarug_submenu():
+    """Submenu interaktif khusus untuk Azarug."""
+    print_header("🎬 AZARUG SCRAPER")
+    url = ask("Masukkan URL situs Azarug (contoh: https://azarug.org/ atau kategori spesifik)", "https://azarug.org/")
+    
+    presets = {
+        "1": {"label": "30 film", "count": 30, "pages": 2},
+        "2": {"label": "100 film", "count": 100, "pages": 6},
+        "3": {"label": "Semua / Custom", "count": 500, "pages": 25}
+    }
+    
+    print(f"\n  {Fore.CYAN}Pilih batas jumlah film:{Style.RESET_ALL}")
+    for k, v in presets.items():
+        print(f"    {Fore.YELLOW}{k}{Style.RESET_ALL}. {v['label']} (max {v['pages']} halaman)")
+        
+    choice = ask("Pilihan", "1")
+    if choice not in presets:
+        err("Pilihan tidak valid")
+        return
+        
+    num = presets[choice]["count"]
+    pages = presets[choice]["pages"]
+    
+    print(f"\n  {Fore.CYAN}Mulai mengekstrak {num} film dari {url}...{Style.RESET_ALL}")
+    
+    from scrape_azarug import scrape_azarug
+    res = scrape_azarug(url, limit=num, max_pages=pages, show_progress=True)
+    
+    if res and res.get("data"):
+        timestamp = int(time.time())
+        out_path = os.path.join(OUTPUT_DIR, f"azarug_{timestamp}.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(res, f, ensure_ascii=False, indent=2)
+            
+        size = round(os.path.getsize(out_path) / 1024, 1)
+        show_result("AZARUG SCRAPE BERHASIL", out_path, 1)
+        info(f"Ukuran file : {size} KB")
+        info(f"Total Film  : {res['metadata']['total_items']}")
+    else:
+        err("Scraping gagal atau tidak menemukan film.")
+
+
 def run_scrape_film():
     """Menu utama Scrape Film."""
     print_header("🎬 SCRAPE FILM / DRAMA / SERIES")
@@ -1268,11 +1310,13 @@ def run_scrape_film():
                  (drakorkita3.nicewap.sbs — 11.779 judul)
     {Fore.YELLOW}2{Style.RESET_ALL}. 🎬  ZeldaEternity (INDOFILM) — Film, Anime, Donghua, Series
                  (zeldaeternity.com — Ribuan judul)
-    {Fore.YELLOW}3{Style.RESET_ALL}. 🌐  Link Lainnya — Scrape dari URL situs film lain
+    {Fore.YELLOW}3{Style.RESET_ALL}. 🍿  Azarug — Film & Series (Standard WP Theme)
+                 (azarug.org — Ribuan judul)
+    {Fore.YELLOW}4{Style.RESET_ALL}. 🌐  Link Lainnya — Scrape murni dari URL situs film lain
     {Fore.YELLOW}0{Style.RESET_ALL}. 🔙  Kembali
 """)
 
-    choice = ask("Pilihan (0-3)", "1")
+    choice = ask("Pilihan (0-4)", "1")
 
     if choice == "0":
         return
@@ -1281,6 +1325,8 @@ def run_scrape_film():
     elif choice == "2":
         _run_zeldaeternity_submenu()
     elif choice == "3":
+        _run_azarug_submenu()
+    elif choice == "4":
         _run_custom_film_scrape()
     else:
         err("Pilihan tidak valid.")
@@ -1315,7 +1361,7 @@ def run_view_results():
     # ── Definisi kategori berdasarkan pola nama file / folder ──
     CATEGORIES = {
         "🎬 Film / Drama / Series": {
-            "patterns": ["drakorkita", "zelda", "indofilm", "film_", "drama", "movie", "series"],
+            "patterns": ["drakorkita", "zelda", "indofilm", "azarug", "film_", "drama", "movie", "series"],
             "subdir": "drakorkita",
         },
         "🥇 Harga Emas": {
