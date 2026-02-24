@@ -228,6 +228,45 @@ def get_stock(symbol: str):
     return jsonify({"status": "ok", "data": stock})
 
 
+# ─── IDX Endpoints ────────────────────────────────────────────────────────────
+
+@app.route("/api/idx/stocks")
+def get_idx_stocks():
+    """Seluruh data saham IDX beserta Ringkasan Perdagangan."""
+    data = load_json_cached("idx_combined_*.json")
+    if not data:
+        abort(503, description="Data IDX belum tersedia. Jalankan scraper IDX terlebih dahulu.")
+        
+    stocks = data.get("stocks", {})
+    
+    # Filter
+    board = request.args.get("board", "").title()
+    if board:
+        stocks = {k: v for k, v in stocks.items() if v.get("Papan_Pencatatan") == board}
+        
+    return jsonify({
+        "status": "ok",
+        "count": len(stocks),
+        "source": data.get("metadata", {}),
+        "data": stocks
+    })
+
+@app.route("/api/idx/brokers")
+def get_idx_brokers():
+    """Seluruh data Ringkasan Broker IDX."""
+    data = load_json_cached("idx_combined_*.json")
+    if not data:
+        abort(503, description="Data IDX belum tersedia.")
+        
+    brokers = data.get("brokers", [])
+    
+    return jsonify({
+        "status": "ok",
+        "count": len(brokers),
+        "source": data.get("metadata", {}),
+        "data": brokers
+    })
+
 # ─── Gold Endpoints ───────────────────────────────────────────────────────────
 
 @app.route("/api/gold")

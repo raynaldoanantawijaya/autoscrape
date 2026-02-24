@@ -694,12 +694,12 @@ def run_scrape_berita():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def run_scrape_saham():
-    """Scrape saham — pilih satu sumber."""
+    """Scrape data saham — pilih IDX atau Pluang."""
     print_header("④ SCRAPE SAHAM / STOCKS")
 
     sources = [
-        ("Pluang (US Stocks)",     "https://pluang.com/saham-as"),
-        ("TradingEconomics",       "https://id.tradingeconomics.com/currencies"),
+        ("Bursa Efek Indonesia (IDX)", "Scrape 900+ saham IHSG & Ringkasan Perdagangan/Broker"),
+        ("Pluang (Saham AS)",          "https://pluang.com/saham-as"),
     ]
 
     print(f"  {Fore.CYAN}Pilih sumber:{Style.RESET_ALL}\n")
@@ -716,27 +716,50 @@ def run_scrape_saham():
         input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
         return
 
-    if 0 <= idx < len(sources):
-        name, url = sources[idx]
+    if idx == 0:
+        # IDX Scraping
+        ok("Memulai scraping data dari Bursa Efek Indonesia (IDX)...")
+        from scrape_idx import scrape_idx_all
+        res = scrape_idx_all()
+        if res:
+            timestamp = int(time.time())
+            out_path = os.path.join(OUTPUT_DIR, f"idx_combined_{timestamp}.json")
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(res, f, ensure_ascii=False, indent=2)
+            
+            size = round(os.path.getsize(out_path) / 1024, 1)
+            show_result("IDX SCRAPE BERHASIL (Metadata + Summary + Broker)", out_path, 1)
+            info(f"Ukuran file : {size} KB")
+            info(f"Total Saham : {res['metadata']['total_stocks']}")
+            info(f"Total Broker: {res['metadata']['total_brokers']}")
+        else:
+            err("Gagal scrape data IDX.")
+            
+    elif idx == 1:
+        # Pluang Scraping
+        name, url = sources[1]
+        print()
+        _scrape_single_url("Pluang", url, technique="ssr")  # Pluang bagus pakai SSR
+
     elif idx == len(sources):
-        url = ask("Masukkan URL halaman saham/keuangan")
+        url = ask("Masukkan URL sumber data saham")
         if not url:
             err("URL kosong!")
             input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
             return
-            
+        
         default_name = _domain(url).title()
         name = ask(f"Nama sumber [{default_name}]", default_name)
         if not name:
             name = default_name
+            
+        print()
+        _scrape_single_url(name, url)
+        
     else:
         err("Pilihan tidak valid.")
-        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
-        return
 
-    print()
-    _scrape_single_url(name, url)
-    input(f"  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
