@@ -562,20 +562,63 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 return results;
             }""", total_eps)
 
-        # Setelah tombol ditemukan, tunggu iframe juga siap (max 5 detik)
-        # Tombol bisa muncul lebih cepat dari iframe, jadi perlu tunggu iframe juga
-        initial_src = ""
-        for _wait in range(5):
-            initial_src = page.evaluate("""() => {
+        # ── Definisi domain iklan ──
+        ad_domains = ['dtscout.com', 'doubleclick', 'googlesyndication', 'adnxs.com']
+
+        def _is_ad(url):
+            return any(ad in url.lower() for ad in ad_domains) if url else False
+
+        def _get_iframe_src():
+            return page.evaluate("""() => {
                 const iframe = document.querySelector('iframe');
                 return (iframe && iframe.src && !iframe.src.startsWith('about:')) ? iframe.src : '';
             }""")
-            if initial_src:
+
+        def _wait_for_clean_iframe(max_wait=5):
+            """Tunggu iframe valid (bukan iklan) hingga max_wait detik."""
+            for _ in range(max_wait):
+                src = _get_iframe_src()
+                if src and not _is_ad(src):
+                    return src
+                page.wait_for_timeout(1000)
+            return ""
+
+        def _reload_and_wait():
+            """Reload halaman dan tunggu tombol episode muncul lagi."""
+            log.info(f"  🔄 Reload halaman untuk menghindari iklan...")
+            try:
+                page.goto(detail_url, wait_until="domcontentloaded", timeout=25000)
+            except Exception:
+                pass
+            # Tunggu tombol episode muncul
+            for _ in range(20):
+                cnt = page.evaluate("""() => document.querySelectorAll('.btn-svr').length""")
+                if cnt > 0:
+                    break
+                page.wait_for_timeout(1000)
+
+        # ── Ambil iframe awal, reload jika terkena iklan (max 3x) ──
+        initial_src = ""
+        for _reload_attempt in range(3):
+            initial_src = _wait_for_clean_iframe(5)
+            if initial_src and not _is_ad(initial_src):
                 break
-            page.wait_for_timeout(1000)
+            # Iframe kosong atau iklan → reload
+            if _reload_attempt < 2:
+                _reload_and_wait()
+                # Re-collect ep_info setelah reload
+                ep_info = page.evaluate("""() => {
+                    const btns = document.querySelectorAll('.btn-svr');
+                    return Array.from(btns).map((b, i) => ({
+                        index: i,
+                        text: b.textContent.trim(),
+                        mid: b.getAttribute('data-mid') || '',
+                        tag: b.getAttribute('data-tag') || ''
+                    }));
+                }""")
 
         if not ep_info:
-            if initial_src:
+            if initial_src and not _is_ad(initial_src):
                 log.info(f"  Film Single / Movie terdeteksi. Menyimpan iframe utama...")
                 episodes_data.append({
                     "episode": "1",
@@ -588,21 +631,23 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                 browser.close()
                 return []
 
-        if initial_src:
+        # Simpan Ep 1 dari initial page (hanya jika bukan iklan)
+        if initial_src and not _is_ad(initial_src):
             episodes_data.append({
                 "episode": ep_info[0]["text"] if ep_info else "1",
                 "video_embed": initial_src,
             })
             log.info(f"  Ep {ep_info[0]['text'] if ep_info else '1'}: {initial_src[:60]}...")
 
-        # Klik setiap episode tombol via JavaScript (bypass iframe interception)
+        # ── Klik setiap episode tombol ──
+        consecutive_fails = 0
         for i, ep in enumerate(ep_info):
-            # Skip episode pertama kalau sudah diambil dari initial page
-            if i == 0 and initial_src:
+            # Skip episode pertama kalau sudah diambil
+            if i == 0 and initial_src and not _is_ad(initial_src):
                 continue
 
             try:
-                # Klik episode button via JavaScript (tidak terblokir iframe)
+                # Klik episode button
                 clicked = page.evaluate(f"""(idx) => {{
                     const btns = document.querySelectorAll('.btn-svr');
                     if (btns[idx]) {{
@@ -616,39 +661,49 @@ def scrape_episodes_with_browser(detail_url: str, total_eps: int) -> list[dict]:
                     log.warning(f"  Ep {ep['text']}: tombol tidak ditemukan")
                     continue
 
-                # Tunggu iframe update, lalu cek apakah src valid (bukan iklan)
-                # Retry hingga 3x jika dapat URL iklan atau kosong
+                # Tunggu + retry jika iklan atau kosong (max 3x)
                 src = ""
-                ad_domains = ['dtscout.com', 'doubleclick', 'googlesyndication', 'adnxs.com']
                 for _retry in range(3):
                     page.wait_for_timeout(2500)
-                    src = page.evaluate("""() => {
-                        const iframe = document.querySelector('iframe');
-                        return (iframe && iframe.src && !iframe.src.startsWith('about:')) ? iframe.src : '';
-                    }""")
-                    
-                    # Cek apakah URL ini iklan
-                    is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
-                    
-                    if src and not is_ad:
+                    src = _get_iframe_src()
+
+                    if src and not _is_ad(src):
                         break  # URL valid!
-                    
-                    if is_ad:
+
+                    if _is_ad(src):
                         log.warning(f"  Ep {ep['text']}: iklan terdeteksi, retry...")
-                    
+
                     # Re-click tombol episode
                     page.evaluate(f"""(idx) => {{
                         const btns = document.querySelectorAll('.btn-svr');
                         if (btns[idx]) btns[idx].click();
                     }}""", i)
 
-                # Filter: jangan simpan URL iklan
-                is_ad = any(ad in src.lower() for ad in ad_domains) if src else False
-                clean_src = src if (src and not is_ad) else ""
+                clean_src = src if (src and not _is_ad(src)) else ""
+
+                if clean_src:
+                    consecutive_fails = 0
+                else:
+                    consecutive_fails += 1
+
+                # Jika 3 episode berturut-turut gagal → halaman terkena hijack iklan
+                # Reload halaman dan coba ulang dari episode ini
+                if consecutive_fails >= 3:
+                    log.warning(f"  ⚠ 3 episode berturut-turut gagal. Reload halaman...")
+                    _reload_and_wait()
+                    consecutive_fails = 0
+
+                    # Re-click episode ini setelah reload
+                    page.evaluate(f"""(idx) => {{
+                        const btns = document.querySelectorAll('.btn-svr');
+                        if (btns[idx]) btns[idx].click();
+                    }}""", i)
+                    page.wait_for_timeout(3000)
+                    clean_src = _wait_for_clean_iframe(5)
 
                 episodes_data.append({
                     "episode": ep["text"],
-                    "video_embed": clean_src,
+                    "video_embed": clean_src or "",
                 })
                 log.info(f"  Ep {ep['text']}: {clean_src[:60]}..." if clean_src else f"  Ep {ep['text']}: no embed")
 
