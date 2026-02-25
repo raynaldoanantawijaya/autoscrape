@@ -1613,16 +1613,28 @@ def run_view_results():
                     episodes = drama.get("episodes", [])
                     if ep_embeds:
                         print(f"\n  {Fore.CYAN}Video Embed per Episode:{Style.RESET_ALL}")
-                        for ep in ep_embeds:
-                            ep_num = ep.get("episode", "?")
+                        for i_ep, ep in enumerate(ep_embeds):
+                            # Ambil nomor episode dari 'episode', 'label', atau urutan
+                            ep_num = ep.get("episode", "")
+                            if not ep_num:
+                                label = ep.get("label", "")
+                                import re as _re
+                                m = _re.search(r'\d+', label)
+                                ep_num = m.group(0) if m else str(i_ep + 1)
                             embed = ep.get("video_embed", "")
                             icon = f"{Fore.GREEN}✓{Style.RESET_ALL}" if embed else f"{Fore.RED}✗{Style.RESET_ALL}"
                             print(f"    {icon} Ep {ep_num}: {Fore.BLUE}{embed[:70]}{Style.RESET_ALL}" if embed else
                                   f"    {icon} Ep {ep_num}: -")
                     elif episodes:
                         print(f"\n  {Fore.CYAN}Daftar Episode ({len(episodes)}):{Style.RESET_ALL}")
-                        for ep in episodes[:20]:
-                            print(f"    → Episode {ep.get('episode', '?')}")
+                        for i_ep, ep in enumerate(episodes[:20]):
+                            ep_num = ep.get('episode', '')
+                            if not ep_num:
+                                label = ep.get('label', '')
+                                import re as _re
+                                m = _re.search(r'\d+', label)
+                                ep_num = m.group(0) if m else str(i_ep + 1)
+                            print(f"    → Episode {ep_num}")
                         if len(episodes) > 20:
                             print(f"    {Fore.YELLOW}... +{len(episodes)-20} episode lagi{Style.RESET_ALL}")
 

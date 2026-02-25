@@ -779,8 +779,17 @@ def _scrape_episode_video(ep_url: str, base_url: str) -> dict:
 
 
 def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
-    """Playwright fallback: Buka halaman dan ambil semua iframe valid (bukan iklan)."""
+    """Playwright fallback: Buka halaman dan ambil semua iframe valid (bukan iklan).
+    Smart-wait: tunggu .btn-svr muncul untuk DrakorKita, lalu klik dan ambil iframe.
+    """
     from playwright.sync_api import sync_playwright
+
+    if not browser_path:
+        for candidate in ["/usr/bin/chromium", "/usr/bin/chromium-browser",
+                          "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"]:
+            if os.path.isfile(candidate):
+                browser_path = candidate
+                break
 
     iframes = []
 
@@ -803,27 +812,47 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
                 page = ctx.new_page()
 
                 try:
-                    page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
                 except Exception:
                     pass
 
-                page.wait_for_timeout(3000)
+                # Smart-wait: tunggu .btn-svr atau iframe muncul (max 15 detik)
+                for _ in range(15):
+                    has_btn = page.evaluate("() => document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn').length > 0")
+                    has_iframe = page.evaluate("""() => {
+                        const iframe = document.querySelector('iframe');
+                        return iframe && iframe.src && !iframe.src.startsWith('about:');
+                    }""")
+                    if has_btn or has_iframe:
+                        break
+                    page.wait_for_timeout(1000)
 
                 # Klik tombol server untuk memunculkan iframe
                 page.evaluate("""() => {
                     let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
                     if (btns.length > 0) btns[0].click();
                 }""")
-                page.wait_for_timeout(2000)
 
-                frame_srcs = page.evaluate("""() => {
-                    return Array.from(document.querySelectorAll('iframe')).map(f => f.src);
-                }""")
+                # Tunggu iframe muncul atau berubah (max 10 detik)
+                final_srcs = []
+                for _ in range(10):
+                    frame_srcs = page.evaluate("""() => {
+                        return Array.from(document.querySelectorAll('iframe')).map(f => f.src);
+                    }""")
+                    clean = [s for s in frame_srcs if s and not _is_ad_iframe(s)]
+                    if clean:
+                        final_srcs = clean
+                        break
+                    page.wait_for_timeout(1000)
 
-                for src in frame_srcs:
-                    if not _is_ad_iframe(src):
-                        iframes.append(src)
+                if not final_srcs:
+                    # Coba sekali lagi setelah total 10 detik
+                    frame_srcs = page.evaluate("""() => {
+                        return Array.from(document.querySelectorAll('iframe')).map(f => f.src);
+                    }""")
+                    final_srcs = [s for s in frame_srcs if s and not _is_ad_iframe(s)]
 
+                iframes = final_srcs
                 browser.close()
                 return iframes
 
