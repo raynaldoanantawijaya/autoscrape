@@ -99,7 +99,7 @@ def heuristik_cari_episode(page, base_url: str):
         let seen = new Set();
         
         // Pola Zelda/Azarug (.gmr-listseries a) dan pola umum episode list
-        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a, ul.lstep li a, .list-episode li a, [class*="episode"] a');
+        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a, ul.lstep li a, .list-episode li a, [class*="episode"] a, #daftarepisode li a, .eplister li a, .bixbox li a, ul.eps_lst li a, .ep_lst li a, a.episode-link');
         
         for (let a of links) {
             let url = a.href;
@@ -187,13 +187,17 @@ def heuristik_cari_film_list(page, base_url: str):
         'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
         '/genre/', '/category/', '/tag/', '/year/', '/country/', '/page/',
         '/about', '/contact', '/dmca', '/login', '/register', 't.me/',
-        '#', 'javascript:', 'mailto:'
+        '#', 'javascript:', 'mailto:',
+        '/director/', '/cast/', '/actor/', '/author/', '/profile/', '/rilis/', '/type/', '/drama/'
     ]
     
-    blacklist_text = [
-        'iklan', 'pasang', 'archive', 'rating', 'best', 'populer', 'terbaru',
-        'next', 'prev', 'home', 'beranda', 'semua', 'selanjutnya', 'sebelumnya',
-        'login', 'register', 'contact', 'about'
+    blacklist_exact = [
+        'next', 'next »', '« prev', 'prev', 'home', 'beranda', 'semua', 'selanjutnya', 'sebelumnya',
+        'login', 'register', 'contact', 'about', 'drama', 'science fiction', 'action', 'comedy', 'romance'
+    ]
+    
+    blacklist_partial = [
+        'pasang iklan', 'archive', 'iklan', 'pasang'
     ]
     
     for link in links:
@@ -213,7 +217,10 @@ def heuristik_cari_film_list(page, base_url: str):
         if any(b in url_lower for b in blacklist_url):
             continue
             
-        if any(b in text_lower for b in blacklist_text):
+        if text_lower in blacklist_exact:
+            continue
+            
+        if any(b in text_lower for b in blacklist_partial):
             continue
             
         # Asumsi heuristik: 
@@ -240,6 +247,9 @@ def heuristik_cari_film_list(page, base_url: str):
 
 def title_clean(t):
     # Bersihkan spasi kosong dan newline berlebih
+    if not t:
+        return ""
+    t = re.sub(r'^(?i)(Permalink ke:|Nonton Film|Streaming Drama Korea|Nonton Streaming)\s*', '', t)
     return re.sub(r'\s+', ' ', t).strip()
 
 def run_custom_scrape(url: str, output_name: str = "custom_film"):
@@ -297,8 +307,8 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                 
                 base_url = url.split('://')[0] + '://' + url.split('://')[1].split('/')[0]
                 
-                # Coba paging sampai 5 halaman
-                for page_num in range(1, 6):
+                # Coba paging sampai 10 halaman
+                for page_num in range(1, 11):
                     films_on_page = heuristik_cari_film_list(page, base_url)
                     
                     # Tambahkan jika belum ada
@@ -310,8 +320,8 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                     found_films.extend(new_films)
                     log.info(f"  → Halaman {page_num}: Menemukan {len(new_films)} film baru. (Total: {len(found_films)})")
                     
-                    if len(found_films) > 250:
-                        log.info("  → Mencapai batas wajar pencarian (250+ film). Berhenti mencari halaman selanjutnya.")
+                    if len(found_films) > 500:
+                        log.info("  → Mencapai batas wajar pencarian (500+ film). Berhenti mencari halaman selanjutnya.")
                         break
                         
                     # Deteksi tombol "Next"
