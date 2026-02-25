@@ -974,8 +974,13 @@ def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retrie
 
 def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
     """Scrape episode video dari site DrakorKita-style menggunakan Playwright.
-    Klik .btn-svr buttons untuk setiap episode dan ambil iframe src.
-    GARANSI: retry per episode hingga 3x, track iframe change, wait lebih lama.
+
+    Struktur DrakorKita:
+    - Series: .btn-svr (id=svr-1,svr-2...) = tombol episode, .btn-sv = tombol server/quality
+    - Movie:  tidak ada .btn-svr, hanya .btn-sv, iframe otomatis dimuat
+
+    Untuk series: klik setiap .btn-svr lalu ambil iframe
+    Untuk movie: langsung ambil iframe yang sudah dimuat
     """
     from playwright.sync_api import sync_playwright
 
@@ -1016,39 +1021,19 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                 except Exception:
                     pass
 
-                # Tunggu .btn-sv / .btn-svr muncul (max 25 detik)
+                # Tunggu halaman render (btn-svr atau btn-sv atau iframe)
                 for _ in range(25):
-                    btn_count = page.evaluate("() => document.querySelectorAll('.btn-sv, .btn-svr').length")
-                    if btn_count > 0:
+                    ready = page.evaluate("""() => {
+                        const hasBtnSvr = document.querySelectorAll('.btn-svr').length > 0;
+                        const hasBtnSv = document.querySelectorAll('.btn-sv').length > 0;
+                        const hasIframe = !!document.querySelector('iframe[src]:not([src^="about:"])');
+                        return hasBtnSvr || hasBtnSv || hasIframe;
+                    }""")
+                    if ready:
                         break
                     page.wait_for_timeout(1000)
 
-                # Tunggu tambahan agar semua button ter-render
                 page.wait_for_timeout(2000)
-
-                # Ambil daftar episode buttons
-                ep_buttons = page.evaluate("""() => {
-                    const btns = document.querySelectorAll('.btn-sv, .btn-svr');
-                    return Array.from(btns).map((b, i) => ({
-                        index: i,
-                        text: b.textContent.trim(),
-                        mid: b.getAttribute('data-mid') || '',
-                        tag: b.getAttribute('data-tag') || ''
-                    }));
-                }""")
-
-                if not ep_buttons:
-                    ep_buttons = page.evaluate("""() => {
-                        const results = [];
-                        const btns = document.querySelectorAll('button, a.btn');
-                        for (const btn of btns) {
-                            const txt = btn.textContent.trim();
-                            if (/^\\d+$/.test(txt)) {
-                                results.push({index: results.length, text: txt});
-                            }
-                        }
-                        return results;
-                    }""")
 
                 def _get_iframe_src():
                     return page.evaluate("""() => {
@@ -1061,96 +1046,137 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                     }""")
 
                 def _wait_for_new_iframe(prev_src, max_wait=8):
-                    """Tunggu sampai iframe berubah dari prev_src (atau muncul iframe baru)."""
                     for _ in range(max_wait):
                         src = _get_iframe_src()
                         if src and not _is_ad(src) and src != prev_src:
                             return src
                         page.wait_for_timeout(1000)
-                    # Fallback: ambil apapun yang ada
                     src = _get_iframe_src()
                     return src if src and not _is_ad(src) else ""
 
-                log.info(f"     → {len(ep_buttons)} episode buttons ditemukan")
+                # ── STEP 1: Cek apakah ada tombol episode (.btn-svr) ──
+                ep_buttons = page.evaluate("""() => {
+                    const btns = document.querySelectorAll('.btn-svr');
+                    return Array.from(btns).map((b, i) => ({
+                        index: i,
+                        text: b.textContent.trim(),
+                        id: b.id || ''
+                    }));
+                }""")
 
-                episodes_data = []
-                prev_iframe = ""
-                seen_srcs = set()  # Track src yang sudah dipakai
+                if ep_buttons and len(ep_buttons) > 0:
+                    # ═══════════════════════════════════════════════
+                    # MODE SERIES: klik setiap episode .btn-svr
+                    # ═══════════════════════════════════════════════
+                    log.info(f"     → {len(ep_buttons)} episode buttons ditemukan (.btn-svr)")
 
-                for ep in ep_buttons:
-                    idx = ep["index"]
-                    ep_num = idx + 1
-                    ep_text = ep.get("text", str(ep_num))
-                    # Gunakan teks button sebagai nomor episode jika berupa angka
-                    try:
-                        ep_label = f"Episode {int(ep_text)}"
-                    except ValueError:
-                        ep_label = f"Episode {ep_num}"
+                    episodes_data = []
+                    seen_srcs = set()
 
-                    video_src = ""
-
-                    # Retry per episode (max 3x)
-                    for _ep_retry in range(3):
+                    for ep in ep_buttons:
+                        idx = ep["index"]
+                        ep_text = ep.get("text", str(idx + 1))
                         try:
-                            # Simpan iframe sebelum klik
-                            before_src = _get_iframe_src()
+                            ep_label = f"Episode {int(ep_text)}"
+                        except ValueError:
+                            ep_label = f"Episode {idx + 1}"
 
-                            # Klik tombol episode
-                            page.evaluate(f"""() => {{
-                                const btns = document.querySelectorAll('.btn-sv, .btn-svr');
-                                if (btns[{idx}]) btns[{idx}].click();
-                            }}""")
+                        video_src = ""
 
-                            # Episode 1 khusus: iframe mungkin sudah ada
-                            if idx == 0:
-                                page.wait_for_timeout(2000)
-                                src = _get_iframe_src()
-                                if src and not _is_ad(src):
-                                    video_src = src
-                                    break
-                                # Jika tidak ada, tunggu lebih lama
-                                src = _wait_for_new_iframe("", max_wait=8)
-                                if src:
-                                    video_src = src
-                                    break
-                            else:
-                                # Untuk episode 2+: tunggu iframe BERUBAH
-                                page.wait_for_timeout(1000)
-                                src = _wait_for_new_iframe(before_src, max_wait=8)
-                                if src and src != before_src:
-                                    video_src = src
-                                    break
-                                elif src and src not in seen_srcs:
-                                    # Iframe tidak berubah tapi src belum pernah dipakai
-                                    video_src = src
-                                    break
+                        for _ep_retry in range(3):
+                            try:
+                                before_src = _get_iframe_src()
 
-                            # Retry: klik ulang setelah jeda
-                            if _ep_retry < 2:
-                                page.wait_for_timeout(1500)
+                                # Klik tombol episode via ID atau index
+                                ep_id = ep.get("id", "")
+                                if ep_id:
+                                    page.evaluate(f"() => document.getElementById('{ep_id}')?.click()")
+                                else:
+                                    page.evaluate(f"""() => {{
+                                        const btns = document.querySelectorAll('.btn-svr');
+                                        if (btns[{idx}]) btns[{idx}].click();
+                                    }}""")
 
-                        except Exception:
-                            if _ep_retry < 2:
-                                page.wait_for_timeout(1000)
+                                if idx == 0:
+                                    page.wait_for_timeout(2000)
+                                    src = _get_iframe_src()
+                                    if src and not _is_ad(src):
+                                        video_src = src
+                                        break
+                                    src = _wait_for_new_iframe("", max_wait=8)
+                                    if src:
+                                        video_src = src
+                                        break
+                                else:
+                                    page.wait_for_timeout(1000)
+                                    src = _wait_for_new_iframe(before_src, max_wait=8)
+                                    if src and src != before_src:
+                                        video_src = src
+                                        break
+                                    elif src and src not in seen_srcs:
+                                        video_src = src
+                                        break
 
-                    if video_src:
-                        seen_srcs.add(video_src)
+                                if _ep_retry < 2:
+                                    page.wait_for_timeout(1500)
+                            except Exception:
+                                if _ep_retry < 2:
+                                    page.wait_for_timeout(1000)
 
-                    episodes_data.append({
-                        "label": ep_label,
-                        "url": detail_url,
-                        "video_embed": video_src,
-                        "video_servers": [{"server": "main", "url": video_src}] if video_src else [],
-                        "download_links": [],
-                    })
+                        if video_src:
+                            seen_srcs.add(video_src)
 
-                    prev_iframe = video_src or prev_iframe
+                        episodes_data.append({
+                            "label": ep_label,
+                            "url": detail_url,
+                            "video_embed": video_src,
+                            "video_servers": [{"server": "main", "url": video_src}] if video_src else [],
+                            "download_links": [],
+                        })
+
+                else:
+                    # ═══════════════════════════════════════════════
+                    # MODE MOVIE: tidak ada .btn-svr, langsung ambil iframe
+                    # ═══════════════════════════════════════════════
+                    log.info(f"     → Movie mode: mengambil iframe langsung")
+
+                    # Klik .btn-sv pertama (jika ada) untuk memastikan player aktif
+                    page.evaluate("""() => {
+                        const btns = document.querySelectorAll('.btn-sv');
+                        if (btns.length > 0) btns[0].click();
+                    }""")
+                    page.wait_for_timeout(2000)
+
+                    # Ambil iframe
+                    src = ""
+                    for _ in range(10):
+                        src = _get_iframe_src()
+                        if src and not _is_ad(src):
+                            break
+                        page.wait_for_timeout(1000)
+
+                    if src and not _is_ad(src):
+                        episodes_data = [{
+                            "label": "Movie",
+                            "url": detail_url,
+                            "video_embed": src,
+                            "video_servers": [{"server": "main", "url": src}],
+                            "download_links": [],
+                        }]
+                    else:
+                        episodes_data = [{
+                            "label": "Movie",
+                            "url": detail_url,
+                            "video_embed": "",
+                            "video_servers": [],
+                            "download_links": [],
+                        }]
 
                 browser.close()
 
-            # === Ronde 2: Retry episode yang masih kosong ===
+            # === Ronde 2: Retry episode yang masih kosong (hanya untuk series) ===
             missing_indices = [i for i, e in enumerate(episodes_data) if not e.get("video_embed")]
-            if missing_indices:
+            if missing_indices and len(ep_buttons) > 0:
                 log.info(f"     ⚠ {len(missing_indices)} episode belum dapat. Retry ronde 2...")
                 try:
                     with sync_playwright() as p:
@@ -1172,9 +1198,8 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                         except Exception:
                             pass
 
-                        # Tunggu buttons
                         for _ in range(25):
-                            btn_count = page.evaluate("() => document.querySelectorAll('.btn-sv, .btn-svr').length")
+                            btn_count = page.evaluate("() => document.querySelectorAll('.btn-svr').length")
                             if btn_count > 0:
                                 break
                             page.wait_for_timeout(1000)
@@ -1187,13 +1212,18 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                                     return (iframe && iframe.src) ? iframe.src : '';
                                 }""")
 
+                                # Klik episode via ID
+                                ep_id = f"svr-{miss_idx + 1}"
                                 page.evaluate(f"""() => {{
-                                    const btns = document.querySelectorAll('.btn-sv, .btn-svr');
-                                    if (btns[{miss_idx}]) btns[{miss_idx}].click();
+                                    let el = document.getElementById('{ep_id}');
+                                    if (!el) {{
+                                        const btns = document.querySelectorAll('.btn-svr');
+                                        el = btns[{miss_idx}];
+                                    }}
+                                    if (el) el.click();
                                 }}""")
                                 page.wait_for_timeout(2000)
 
-                                # Tunggu iframe berubah (max 10 detik)
                                 for _ in range(10):
                                     src = page.evaluate("""() => {
                                         const iframes = document.querySelectorAll('iframe');
@@ -1218,7 +1248,7 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
 
             filled = sum(1 for e in episodes_data if e.get("video_embed"))
             pct = round(filled / len(episodes_data) * 100, 1) if episodes_data else 0
-            log.info(f"     ✓ DrakorKita episodes: {filled}/{len(episodes_data)} ({pct}%) berhasil")
+            log.info(f"     ✓ DrakorKita: {filled}/{len(episodes_data)} ({pct}%) berhasil")
             break
 
         except Exception as e:
