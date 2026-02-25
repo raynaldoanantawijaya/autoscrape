@@ -274,9 +274,37 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
     all_films = []
     seen_urls = set()
     current_url = start_url
-    consecutive_empty = 0  # Hitung halaman kosong berturut-turut
+    consecutive_empty = 0
+    paging_mode = None  # 'wp' = /page/N/, 'query' = ?page=N, 'drakorkita' = /all?page=N
+
+    # ── Auto-detect: DrakorKita sites menggunakan /all?page=N ──
+    html_probe = _get_html(start_url)
+    if html_probe:
+        soup_probe = BeautifulSoup(html_probe, "html.parser")
+        # DrakorKita: has a[href*='/detail/'] links
+        detail_links = soup_probe.select("a[href*='/detail/']")
+        if detail_links:
+            paging_mode = 'drakorkita'
+            # Redirect ke /all untuk listing lengkap
+            all_url = f"{base_url}/all"
+            test_html = _get_html(all_url)
+            if test_html:
+                current_url = all_url
+                log.info(f"  ℹ DrakorKita terdeteksi. Redirect ke: {all_url}")
 
     for page_num in range(1, max_pages + 1):
+        # Buat URL berdasarkan paging mode
+        if page_num > 1:
+            if paging_mode == 'drakorkita':
+                current_url = f"{base_url}/all?page={page_num}"
+            elif paging_mode == 'query':
+                from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+                parsed = urlparse(current_url)
+                params = parse_qs(parsed.query)
+                params['page'] = [str(page_num)]
+                current_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+            # WP mode handles it in the next-page detection below
+
         log.info(f"  📄 Halaman {page_num}: {current_url}")
 
         films = _fetch_listing_page(current_url, base_url)
@@ -299,13 +327,19 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
         else:
             consecutive_empty = 0
 
-        # Cari halaman berikutnya
+        # Untuk DrakorKita/query mode, paging sudah dihandle di atas
+        if paging_mode in ('drakorkita', 'query'):
+            time.sleep(0.5)
+            continue
+
+        # Untuk WP mode: cari halaman berikutnya
         html = _get_html(current_url)
         if html:
             soup = BeautifulSoup(html, "html.parser")
             next_url = _detect_next_page(soup, current_url, base_url)
             if next_url and next_url != current_url:
                 current_url = next_url
+                paging_mode = 'wp'
                 time.sleep(0.5)
             else:
                 # Coba pola /page/N/ manual
@@ -314,15 +348,29 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
                     test_html = _get_html(next_try)
                     if test_html:
                         current_url = next_try
+                        paging_mode = 'wp'
                         time.sleep(0.5)
                     else:
-                        break
+                        # Coba ?page=2
+                        next_try = f"{start_url.rstrip('/')}?page=2" if '?' not in start_url else start_url + "&page=2"
+                        test_html = _get_html(next_try)
+                        if test_html:
+                            soup_test = BeautifulSoup(test_html, "html.parser")
+                            test_films = _fetch_listing_page(next_try, base_url)
+                            if test_films:
+                                paging_mode = 'query'
+                                time.sleep(0.5)
+                            else:
+                                break
+                        else:
+                            break
                 else:
                     # Increment page number di URL
                     m = re.search(r'/page/(\d+)/', current_url)
                     if m:
                         next_num = int(m.group(1)) + 1
                         current_url = re.sub(r'/page/\d+/', f'/page/{next_num}/', current_url)
+                        paging_mode = 'wp'
                         time.sleep(0.5)
                     else:
                         break
@@ -537,7 +585,7 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
         crew_area = soup.select_one(".desc-wrap") or soup.select_one(".infox") or soup
         result["directors"] = [a.get_text(strip=True) for a in crew_area.select("a[href*='crew=']") if a.get_text(strip=True)]
 
-    # ── EPISODE LIST ──
+    # ── EPISODE LIST (Static HTML) ──
     ep_selectors = [
         ".gmr-listseries a",
         ".episodelist a",
@@ -552,7 +600,6 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
             ep_url = ep_link.get("href", "")
             ep_text = ep_link.get_text(strip=True)
             if ep_url and ep_url not in seen_ep and ep_text:
-                # Filter: hanya link episode yang valid (biasanya /eps/ atau /episode/)
                 if not ep_url.startswith("http"):
                     ep_url = urljoin(base_url, ep_url)
                 seen_ep.add(ep_url)
@@ -562,6 +609,29 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
         result["type"] = "TV Series"
         result["total_episodes"] = len(episodes)
         result["episodes"] = episodes
+
+    # ── FALLBACK EPISODE COUNT: Parse dari judul (DrakorKita: "Episode 1 - 8") ──
+    if not episodes:
+        ep_count = 0
+        # Cari dari judul: "Episode 1 - 8" → 8
+        title_text = result.get("title", "")
+        ep_match = re.search(r'Episode\s+\d+\s*[-~]\s*(\d+)', title_text, re.I)
+        if ep_match:
+            ep_count = int(ep_match.group(1))
+        # Fallback: cari dari metadata info_fields
+        if not ep_count:
+            ep_count_str = result.get("episode_count", "") or ""
+            try:
+                ep_count = int(re.search(r'\d+', ep_count_str).group()) if ep_count_str else 0
+            except (AttributeError, ValueError):
+                pass
+
+        if ep_count > 0:
+            result["type"] = "TV Series"
+            result["total_episodes"] = ep_count
+            # Generate placeholder episodes (akan diisi Playwright di _process_film)
+            result["episodes"] = [{"label": f"Episode {i}", "url": ""} for i in range(1, ep_count + 1)]
+            result["_needs_playwright_episodes"] = True  # Flag untuk pipeline
 
     # ── DOWNLOAD LINKS ──
     downloads = []
@@ -814,6 +884,147 @@ def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retrie
     return results
 
 
+def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
+    """Scrape episode video dari site DrakorKita-style menggunakan Playwright.
+    Klik .btn-svr buttons untuk setiap episode dan ambil iframe src.
+    """
+    from playwright.sync_api import sync_playwright
+
+    browser_path = None
+    for candidate in ["/usr/bin/chromium", "/usr/bin/chromium-browser",
+                      "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"]:
+        if os.path.isfile(candidate):
+            browser_path = candidate
+            break
+
+    episodes_data = []
+    ad_domains = AD_DOMAINS
+
+    def _is_ad(url):
+        return any(ad in url.lower() for ad in ad_domains) if url else False
+
+    for _pw_attempt in range(3):
+        try:
+            with sync_playwright() as p:
+                launch_args = {"headless": True}
+                if browser_path:
+                    launch_args["executable_path"] = browser_path
+
+                try:
+                    browser = p.chromium.launch(**launch_args)
+                except Exception:
+                    browser = p.chromium.launch(headless=True)
+
+                ctx = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
+                    viewport={"width": 1366, "height": 768}
+                )
+                page = ctx.new_page()
+
+                try:
+                    page.goto(detail_url, wait_until="domcontentloaded", timeout=25000)
+                except Exception:
+                    pass
+
+                # Tunggu .btn-svr muncul (max 20 detik)
+                for _ in range(20):
+                    btn_count = page.evaluate("() => document.querySelectorAll('.btn-svr').length")
+                    if btn_count > 0:
+                        break
+                    page.wait_for_timeout(1000)
+
+                # Ambil daftar episode buttons
+                ep_buttons = page.evaluate("""() => {
+                    const btns = document.querySelectorAll('.btn-svr');
+                    return Array.from(btns).map((b, i) => ({
+                        index: i,
+                        text: b.textContent.trim(),
+                        mid: b.getAttribute('data-mid') || '',
+                        tag: b.getAttribute('data-tag') || ''
+                    }));
+                }""")
+
+                if not ep_buttons:
+                    # Fallback: cari tombol angka
+                    ep_buttons = page.evaluate("""() => {
+                        const results = [];
+                        const btns = document.querySelectorAll('button, a.btn');
+                        for (const btn of btns) {
+                            const txt = btn.textContent.trim();
+                            if (/^\\d+$/.test(txt)) {
+                                results.push({index: results.length, text: txt});
+                            }
+                        }
+                        return results;
+                    }""")
+
+                def _get_iframe_src():
+                    return page.evaluate("""() => {
+                        const iframe = document.querySelector('iframe');
+                        return (iframe && iframe.src && !iframe.src.startsWith('about:')) ? iframe.src : '';
+                    }""")
+
+                def _wait_for_clean_iframe(max_wait=5):
+                    for _ in range(max_wait):
+                        src = _get_iframe_src()
+                        if src and not _is_ad(src):
+                            return src
+                        page.wait_for_timeout(1000)
+                    return _get_iframe_src()
+
+                log.info(f"     → {len(ep_buttons)} episode buttons ditemukan")
+
+                episodes_data = []
+                for ep in ep_buttons:
+                    idx = ep["index"]
+                    ep_text = ep.get("text", str(idx + 1))
+
+                    try:
+                        # Klik tombol episode
+                        page.evaluate(f"""() => {{
+                            const btns = document.querySelectorAll('.btn-svr');
+                            if (btns[{idx}]) btns[{idx}].click();
+                        }}""")
+                        page.wait_for_timeout(1500)
+
+                        # Ambil iframe src
+                        src = _wait_for_clean_iframe(5)
+
+                        episodes_data.append({
+                            "label": f"Episode {ep_text}",
+                            "url": detail_url,
+                            "video_embed": src if src and not _is_ad(src) else "",
+                            "video_servers": [{"server": "main", "url": src}] if src and not _is_ad(src) else [],
+                            "download_links": [],
+                        })
+                    except Exception:
+                        episodes_data.append({
+                            "label": f"Episode {ep_text}",
+                            "url": detail_url,
+                            "video_embed": "",
+                            "video_servers": [],
+                            "download_links": [],
+                        })
+
+                browser.close()
+
+            filled = sum(1 for e in episodes_data if e.get("video_embed"))
+            pct = round(filled / len(episodes_data) * 100, 1) if episodes_data else 0
+            log.info(f"     ✓ DrakorKita episodes: {filled}/{len(episodes_data)} ({pct}%) berhasil")
+            break
+
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "execution context" in err_msg or "target closed" in err_msg:
+                log.debug(f"     ⚠ Browser crash ronde {_pw_attempt+1}/3, restart...")
+                time.sleep(2)
+                continue
+            log.debug(f"     ✗ Playwright error: {e}")
+            break
+
+    return episodes_data
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PIPELINE UTAMA
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -905,12 +1116,24 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                 detail["title"] = f_title
 
             # Jika ada episode, scrape semua episode dengan verifikasi
-            if detail["episodes"]:
+            if detail["episodes"] and not detail.get("_needs_playwright_episodes"):
+                # Episode punya URL (GMR/WP theme) → scrape per episode
                 ep_results = _scrape_episodes_with_verification(
                     detail["episodes"], base_url, max_retries=2
                 )
                 detail["episode_embeds"] = ep_results
                 detail["total_episodes"] = len(ep_results)
+
+            elif detail.get("_needs_playwright_episodes"):
+                # DrakorKita: Episode JS-rendered via .btn-svr buttons
+                # Gunakan Playwright untuk klik setiap episode dan ambil iframe
+                ep_count = detail["total_episodes"]
+                log.info(f"     📺 DrakorKita mode: {ep_count} episode via Playwright...")
+                ep_results = _scrape_drakorkita_episodes(f_url, ep_count)
+                detail["episode_embeds"] = ep_results
+                detail["total_episodes"] = len(ep_results)
+                del detail["_needs_playwright_episodes"]
+
             else:
                 # Film biasa tanpa episode — video embed sudah diambil di scrape_detail
                 detail["episode_embeds"] = []
