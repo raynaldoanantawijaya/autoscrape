@@ -268,12 +268,13 @@ def _detect_next_page(soup, current_url: str, base_url: str) -> str | None:
     return None
 
 
-def crawl_film_listings(start_url: str, max_pages: int = 10, max_films: int = 500) -> list[dict]:
-    """Crawl daftar film dari halaman beranda/kategori dengan paging otomatis."""
+def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 99999) -> list[dict]:
+    """Crawl daftar film dari halaman beranda/kategori TANPA BATAS sampai habis."""
     base_url = _get_base_url(start_url)
     all_films = []
     seen_urls = set()
     current_url = start_url
+    consecutive_empty = 0  # Hitung halaman kosong berturut-turut
 
     for page_num in range(1, max_pages + 1):
         log.info(f"  📄 Halaman {page_num}: {current_url}")
@@ -290,12 +291,13 @@ def crawl_film_listings(start_url: str, max_pages: int = 10, max_films: int = 50
 
         log.info(f"     → {new_count} judul baru (total: {len(all_films)})")
 
-        if not films:
-            break
-
-        if len(all_films) >= max_films:
-            log.info(f"  ⚠ Mencapai batas {max_films} film, berhenti.")
-            break
+        if not films or new_count == 0:
+            consecutive_empty += 1
+            if consecutive_empty >= 2:
+                log.info(f"  ✓ 2 halaman kosong berturut-turut, semua film sudah terkumpul.")
+                break
+        else:
+            consecutive_empty = 0
 
         # Cari halaman berikutnya
         html = _get_html(current_url)
@@ -628,8 +630,8 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
     return []
 
 
-def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retries: int = 3) -> list:
-    """Scrape semua episode secara paralel DENGAN verifikasi retry."""
+def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retries: int = 5) -> list:
+    """Scrape semua episode secara paralel DENGAN GARANSI verifikasi multi-ronde."""
     log.info(f"     📺 Scraping {len(episodes)} episode secara paralel...")
 
     browser_path = None
@@ -639,31 +641,67 @@ def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retrie
             browser_path = candidate
             break
 
-    # Ronde 1: Requests + AJAX (cepat)
+    # ── RONDE 1: Requests + AJAX (cepat, paralel 8 thread) ──
     results = [None] * len(episodes)
 
     def _worker(idx, ep):
         ep_data = _scrape_episode_video(ep["url"], base_url)
         return idx, ep_data
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(_worker, i, ep): i for i, ep in enumerate(episodes)}
         for f in as_completed(futures):
-            idx, data = f.result()
-            results[idx] = {
-                "label": episodes[idx]["label"],
-                "url": episodes[idx]["url"],
-                "video_embed": data["video_embed"],
-                "video_servers": data["video_servers"],
-                "download_links": data["download_links"],
+            try:
+                idx, data = f.result()
+                results[idx] = {
+                    "label": episodes[idx]["label"],
+                    "url": episodes[idx]["url"],
+                    "video_embed": data["video_embed"],
+                    "video_servers": data["video_servers"],
+                    "download_links": data["download_links"],
+                }
+            except Exception as e:
+                log.debug(f"     Worker error: {e}")
+
+    # Pastikan semua slot terisi (walau kosong)
+    for i in range(len(results)):
+        if results[i] is None:
+            results[i] = {
+                "label": episodes[i]["label"],
+                "url": episodes[i]["url"],
+                "video_embed": "",
+                "video_servers": [],
+                "download_links": [],
             }
 
-    # Ronde 2: Verifikasi — episode yang GAGAL mendapat video, coba dengan Playwright
-    missing = [(i, results[i]) for i in range(len(results))
-               if results[i] and not results[i]["video_embed"]]
+    filled_r1 = sum(1 for r in results if r.get("video_embed"))
+    log.info(f"     → Ronde 1 (AJAX): {filled_r1}/{len(episodes)} episode mendapat video")
+
+    # ── RONDE 2: Re-try AJAX untuk yang gagal (kadang server lambat) ──
+    missing = [(i, results[i]) for i in range(len(results)) if not results[i].get("video_embed")]
+    if missing:
+        log.info(f"     ⚠ {len(missing)} episode belum dapat. Re-try AJAX...")
+        time.sleep(1)
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            futures = {ex.submit(_worker, i, ep): (i, ep) for i, ep in missing}
+            for f in as_completed(futures):
+                try:
+                    idx, data = f.result()
+                    if data["video_embed"]:
+                        results[idx]["video_embed"] = data["video_embed"]
+                        results[idx]["video_servers"] = data["video_servers"]
+                        results[idx]["download_links"] = data.get("download_links", [])
+                except Exception:
+                    pass
+
+        filled_r2 = sum(1 for r in results if r.get("video_embed"))
+        log.info(f"     → Ronde 2 (AJAX retry): {filled_r2}/{len(episodes)} episode")
+
+    # ── RONDE 3-5: Playwright fallback untuk yang masih gagal ──
+    missing = [(i, results[i]) for i in range(len(results)) if not results[i].get("video_embed")]
 
     if missing:
-        log.info(f"     ⚠ {len(missing)} episode tanpa video. Mengulang dengan Playwright...")
+        log.info(f"     🔧 {len(missing)} episode masih kosong. Melancarkan Playwright...")
         for retry_round in range(1, max_retries + 1):
             still_missing = []
             for i, ep in missing:
@@ -678,14 +716,22 @@ def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retrie
                     still_missing.append((i, ep))
 
             if not still_missing:
-                log.info(f"     ✓ Semua episode terverifikasi (ronde {retry_round})")
+                log.info(f"     ✓ Semua episode 100% terverifikasi! (Playwright ronde {retry_round})")
                 break
             missing = still_missing
-            log.info(f"     ⚠ Masih {len(missing)} episode kosong setelah retry ronde {retry_round}")
+            if retry_round < max_retries:
+                log.info(f"     ⚠ Masih {len(missing)} episode kosong, retry Playwright ronde {retry_round+1}...")
+                time.sleep(2)  # Jeda sebelum retry
+            else:
+                log.info(f"     ⚠ {len(missing)} episode tetap kosong setelah {max_retries} ronde Playwright")
 
-    # Hitungan final
-    filled = sum(1 for r in results if r and r.get("video_embed"))
-    log.info(f"     ✓ Episode selesai: {filled}/{len(episodes)} berhasil diambil videonya")
+    # ── LAPORAN FINAL ──
+    filled = sum(1 for r in results if r.get("video_embed"))
+    total = len(episodes)
+    pct = round(filled / total * 100, 1) if total else 0
+    log.info(f"     ✓ Episode selesai: {filled}/{total} ({pct}%) berhasil diambil videonya")
+    if filled < total:
+        log.info(f"     ℹ {total - filled} episode mungkin memang belum punya video di server sumber")
 
     return results
 
@@ -726,7 +772,7 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
     else:
         # Halaman KATALOG — crawl listing
         log.info("✓ URL terdeteksi sebagai Halaman Katalog. Memulai crawling...")
-        found_films = crawl_film_listings(url, max_pages=10)
+        found_films = crawl_film_listings(url)  # Tanpa batas — crawl sampai habis
 
         if not found_films:
             log.error("✗ Tidak ada film ditemukan di halaman ini.")
