@@ -399,12 +399,23 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
 
     # ── JUDUL ──
-    h1 = soup.select_one("h1.entry-title, h1[itemprop='headline'], h1")
-    if h1:
-        result["title"] = _title_clean(h1.get_text(strip=True))
+    # Prioritas: h1[itemprop=headline] > h1.entry-title > 2nd h1 (DrakorKita: 1st h1 = site title)
+    h1_headline = soup.select_one('h1[itemprop="headline"]')
+    h1_entry = soup.select_one('h1.entry-title')
+    all_h1 = soup.select('h1')
+
+    if h1_headline:
+        result["title"] = _title_clean(h1_headline.get_text(strip=True))
+    elif h1_entry:
+        result["title"] = _title_clean(h1_entry.get_text(strip=True))
+    elif len(all_h1) >= 2:
+        # DrakorKita: h1 pertama = "Drama Korea" (site title), h1 kedua = judul film
+        result["title"] = _title_clean(all_h1[1].get_text(strip=True))
+    elif all_h1:
+        result["title"] = _title_clean(all_h1[0].get_text(strip=True))
 
     # Fallback dari slug
-    if not result["title"]:
+    if not result["title"] or result["title"].lower() in ['drama korea', 'nonton', 'streaming']:
         slug = detail_url.rstrip("/").split("/")[-1]
         parts = slug.split("-")
         if len(parts) >= 2 and len(parts[-1]) <= 5 and parts[-1].isalnum():
@@ -431,22 +442,23 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
         if meta_desc:
             result["sinopsis"] = meta_desc.get("content", "")
 
-    # ── METADATA (.gmr-moviedata / .gmr-movie-meta / .infox .spe) ──
-    meta_selectors = [".gmr-moviedata", ".gmr-movie-meta", ".infox .spe span", ".anf li"]
+    # ── METADATA (.gmr-moviedata / .gmr-movie-meta / .infox .spe / .anf li) ──
+    meta_selectors = [".gmr-moviedata", ".gmr-movie-meta", ".gmr-movie-meta-list .gmr-movie-meta",
+                      ".infox .spe span", ".anf li"]
     for meta_sel in meta_selectors:
         for meta_div in soup.select(meta_sel):
-            label_full = meta_div.get_text(strip=True).lower()
+            label_full = meta_div.get_text(" ", strip=True).lower()
 
-            if "genre" in label_full:
+            if "genre" in label_full and not result["genres"]:
                 result["genres"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
                                    [g.strip() for g in label_full.split(":")[-1].split(",") if g.strip()]
-            elif any(k in label_full for k in ["pemain", "cast", "bintang", "aktor"]):
+            elif any(k in label_full for k in ["pemain", "cast", "bintang", "aktor"]) and not result["cast"]:
                 result["cast"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
                                  [c.strip() for c in label_full.split(":")[-1].split(",") if c.strip()]
-            elif any(k in label_full for k in ["sutradara", "director", "direksi"]):
+            elif any(k in label_full for k in ["sutradara", "director", "direksi"]) and not result["directors"]:
                 result["directors"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
                                       [d.strip() for d in label_full.split(":")[-1].split(",") if d.strip()]
-            elif any(k in label_full for k in ["rilis", "tahun", "year", "release"]):
+            elif any(k in label_full for k in ["rilis", "tahun", "year", "release"]) and not result["year"]:
                 links = meta_div.select("a")
                 if links:
                     result["year"] = links[0].get_text(strip=True)
@@ -454,18 +466,76 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
                     m = re.search(r'(\d{4})', label_full)
                     if m:
                         result["year"] = m.group(1)
-            elif any(k in label_full for k in ["negara", "country"]):
+            elif any(k in label_full for k in ["negara", "country"]) and not result["country"]:
                 result["country"] = ", ".join(a.get_text(strip=True) for a in meta_div.select("a"))
-            elif any(k in label_full for k in ["rating", "imdb"]):
+            elif any(k in label_full for k in ["rating", "imdb"]) and not result["rating"]:
                 m = re.search(r'[\d.]+', label_full)
                 if m:
                     result["rating"] = m.group(0)
-            elif any(k in label_full for k in ["kualitas", "quality"]):
+            elif any(k in label_full for k in ["kualitas", "quality"]) and not result["quality"]:
                 links = meta_div.select("a")
                 result["quality"] = links[0].get_text(strip=True) if links else ""
-            elif any(k in label_full for k in ["durasi", "duration"]):
+            elif any(k in label_full for k in ["durasi", "duration"]) and not result["duration"]:
                 m = re.search(r'[\d]+\s*(?:min|menit|jam)', label_full, re.IGNORECASE)
                 result["duration"] = m.group(0) if m else ""
+
+    # ── FALLBACK METADATA: DrakorKita ".anf li" dengan " : " separator ──
+    if not result["genres"] or not result["cast"]:
+        info_fields = {}
+        for li in soup.select(".anf li"):
+            text = li.get_text(" ", strip=True)
+            if " : " in text:
+                key, _, value = text.partition(" : ")
+                info_fields[key.strip().lower()] = value.strip()
+        # Juga cek standalone <span> dengan " : "
+        if not info_fields:
+            for span in soup.select("span"):
+                text = span.get_text(" ", strip=True)
+                if " : " in text and len(text) < 150:
+                    key, _, value = text.partition(" : ")
+                    k = key.strip().lower()
+                    if k and k not in ("sinopsis", "informasi") and k not in info_fields:
+                        info_fields[k] = value.strip()
+
+        if not result["year"] and info_fields.get("first_air_date"):
+            result["year"] = info_fields["first_air_date"]
+        if not result["type"]:
+            result["type"] = info_fields.get("type", "Movie")
+        result["status"] = info_fields.get("status", "")
+        result["season"] = info_fields.get("season", "")
+
+    # ── FALLBACK GENRE: DrakorKita (.gnr a) ──
+    if not result["genres"]:
+        gnr = soup.select_one(".gnr")
+        if gnr:
+            result["genres"] = [a.get_text(strip=True) for a in gnr.select("a") if a.get_text(strip=True)]
+        else:
+            # URL-param based genre links
+            infox = soup.select_one(".infox, .detail-content")
+            search_area = infox if infox else soup
+            result["genres"] = [a.get_text(strip=True) for a in search_area.select("a[href*='genre=']") if a.get_text(strip=True)]
+
+    # ── FALLBACK CAST: DrakorKita (a[href*='cast=']) ──
+    if not result["cast"]:
+        cast_area = soup.select_one(".desc-wrap") or soup.select_one(".infox") or soup
+        raw_cast = [a.get_text(strip=True) for a in cast_area.select("a[href*='cast=']") if a.get_text(strip=True)]
+        # Fix DrakorKita merged "Lee Na-youngas Yoon Ra-young" → "Lee Na-young"
+        # Pattern: actor name ends with lowercase, then "as" merges, then role starts with uppercase
+        cleaned = []
+        for c in raw_cast:
+            # Find pattern: lowercase letter + "as" + uppercase letter → split and keep left part
+            m = re.search(r'^(.+?[a-z])as\s*[A-Z]', c)
+            if m:
+                c = m.group(1)
+            c = c.strip()
+            if c and c not in cleaned:
+                cleaned.append(c)
+        result["cast"] = cleaned
+
+    # ── FALLBACK DIRECTORS: DrakorKita (a[href*='crew=']) ──
+    if not result["directors"]:
+        crew_area = soup.select_one(".desc-wrap") or soup.select_one(".infox") or soup
+        result["directors"] = [a.get_text(strip=True) for a in crew_area.select("a[href*='crew=']") if a.get_text(strip=True)]
 
     # ── EPISODE LIST ──
     ep_selectors = [
@@ -502,12 +572,20 @@ def scrape_detail(detail_url: str, base_url: str) -> dict:
             if href and "javascript" not in href.lower() and "klik.best" not in href:
                 downloads.append({"text": text or "Download", "url": href})
     else:
-        # Fallback: cari tombol download
-        for a in soup.select("a[href]"):
-            if "download" in a.get_text(strip=True).lower():
-                href = a.get("href", "")
-                if href and "javascript" not in href.lower():
-                    downloads.append({"text": a.get_text(strip=True), "url": href})
+        # DrakorKita: tombol #nonot
+        dl_btn = soup.select_one("#nonot, a[id='nonot']")
+        if dl_btn:
+            dl_url = dl_btn.get("href", "")
+            if dl_url and dl_url != "#":
+                downloads.append({"text": "DOWNLOAD", "url": dl_url})
+        else:
+            # Fallback: cari tombol download
+            for a in soup.select("a[href]"):
+                txt = a.get_text(strip=True).lower()
+                if "download" in txt or "unduh" in txt:
+                    href = a.get("href", "")
+                    if href and "javascript" not in href.lower():
+                        downloads.append({"text": a.get_text(strip=True), "url": href})
 
     result["download_links"] = downloads
 
