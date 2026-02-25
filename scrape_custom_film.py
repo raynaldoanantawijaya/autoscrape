@@ -269,41 +269,101 @@ def _detect_next_page(soup, current_url: str, base_url: str) -> str | None:
 
 
 def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 99999) -> list[dict]:
-    """Crawl daftar film dari halaman beranda/kategori TANPA BATAS sampai habis."""
+    """Crawl daftar film dari halaman beranda/kategori TANPA BATAS sampai habis.
+    DrakorKita mode: paralel 10 halaman sekaligus (10x lebih cepat).
+    """
     base_url = _get_base_url(start_url)
     all_films = []
     seen_urls = set()
     current_url = start_url
-    consecutive_empty = 0
     paging_mode = None  # 'wp' = /page/N/, 'query' = ?page=N, 'drakorkita' = /all?page=N
 
     # ── Auto-detect: DrakorKita sites menggunakan /all?page=N ──
     html_probe = _get_html(start_url)
     if html_probe:
         soup_probe = BeautifulSoup(html_probe, "html.parser")
-        # DrakorKita: has a[href*='/detail/'] links
         detail_links = soup_probe.select("a[href*='/detail/']")
         if detail_links:
             paging_mode = 'drakorkita'
-            # Redirect ke /all untuk listing lengkap
             all_url = f"{base_url}/all"
             test_html = _get_html(all_url)
             if test_html:
                 current_url = all_url
                 log.info(f"  ℹ DrakorKita terdeteksi. Redirect ke: {all_url}")
 
+    # ═══════════════════════════════════════════════════════════════════
+    # FAST PATH: DrakorKita — paralel 10 halaman sekaligus
+    # ═══════════════════════════════════════════════════════════════════
+    if paging_mode == 'drakorkita':
+        BATCH_SIZE = 10  # Fetch 10 halaman secara paralel
+
+        def _fetch_page_batch(page_num):
+            """Fetch satu halaman listing, return (page_num, films)."""
+            url = f"{base_url}/all?page={page_num}"
+            try:
+                return (page_num, _fetch_listing_page(url, base_url))
+            except Exception:
+                return (page_num, [])
+
+        page_num = 1
+        consecutive_empty = 0
+
+        while page_num <= max_pages:
+            # Tentukan batch: page_num s/d page_num+BATCH_SIZE-1
+            batch_start = page_num
+            batch_end = min(page_num + BATCH_SIZE - 1, max_pages)
+            batch_range = range(batch_start, batch_end + 1)
+
+            log.info(f"  ⚡ Batch fetch halaman {batch_start}-{batch_end}...")
+
+            # Paralel fetch
+            batch_results = {}
+            with ThreadPoolExecutor(max_workers=BATCH_SIZE) as ex:
+                futures = {ex.submit(_fetch_page_batch, pn): pn for pn in batch_range}
+                for f in as_completed(futures):
+                    pn, films = f.result()
+                    batch_results[pn] = films
+
+            # Proses hasil secara berurutan (agar deduplicate konsisten)
+            batch_total_new = 0
+            for pn in sorted(batch_results.keys()):
+                films = batch_results[pn]
+                new_count = 0
+                for film in films:
+                    if film["detail_url"] not in seen_urls:
+                        seen_urls.add(film["detail_url"])
+                        all_films.append(film)
+                        new_count += 1
+                batch_total_new += new_count
+
+                if not films or new_count == 0:
+                    consecutive_empty += 1
+                else:
+                    consecutive_empty = 0
+
+            log.info(f"     → {batch_total_new} judul baru (total: {len(all_films)})")
+
+            if consecutive_empty >= 2:
+                log.info(f"  ✓ Halaman kosong terdeteksi, semua film sudah terkumpul.")
+                break
+
+            page_num = batch_end + 1
+            time.sleep(0.3)  # Jeda antar batch
+
+        return all_films
+
+    # ═══════════════════════════════════════════════════════════════════
+    # NORMAL PATH: WP / Generic — sequential (perlu deteksi next page)
+    # ═══════════════════════════════════════════════════════════════════
+    consecutive_empty = 0
+
     for page_num in range(1, max_pages + 1):
-        # Buat URL berdasarkan paging mode
-        if page_num > 1:
-            if paging_mode == 'drakorkita':
-                current_url = f"{base_url}/all?page={page_num}"
-            elif paging_mode == 'query':
-                from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-                parsed = urlparse(current_url)
-                params = parse_qs(parsed.query)
-                params['page'] = [str(page_num)]
-                current_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
-            # WP mode handles it in the next-page detection below
+        if page_num > 1 and paging_mode == 'query':
+            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+            parsed = urlparse(current_url)
+            params = parse_qs(parsed.query)
+            params['page'] = [str(page_num)]
+            current_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
 
         log.info(f"  📄 Halaman {page_num}: {current_url}")
 
@@ -327,8 +387,8 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
         else:
             consecutive_empty = 0
 
-        # Untuk DrakorKita/query mode, paging sudah dihandle di atas
-        if paging_mode in ('drakorkita', 'query'):
+        # Untuk query mode, paging sudah dihandle di atas
+        if paging_mode == 'query':
             time.sleep(0.5)
             continue
 
@@ -355,7 +415,6 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
                         next_try = f"{start_url.rstrip('/')}?page=2" if '?' not in start_url else start_url + "&page=2"
                         test_html = _get_html(next_try)
                         if test_html:
-                            soup_test = BeautifulSoup(test_html, "html.parser")
                             test_films = _fetch_listing_page(next_try, base_url)
                             if test_films:
                                 paging_mode = 'query'
