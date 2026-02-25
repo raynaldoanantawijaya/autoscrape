@@ -816,9 +816,9 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
                 except Exception:
                     pass
 
-                # Smart-wait: tunggu .btn-svr atau iframe muncul (max 15 detik)
+                # Smart-wait: tunggu .btn-sv/.btn-svr atau iframe muncul (max 15 detik)
                 for _ in range(15):
-                    has_btn = page.evaluate("() => document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn').length > 0")
+                    has_btn = page.evaluate("() => document.querySelectorAll('.btn-sv, .btn-svr, .server-btn, .gmr-player-btn').length > 0")
                     has_iframe = page.evaluate("""() => {
                         const iframe = document.querySelector('iframe');
                         return iframe && iframe.src && !iframe.src.startsWith('about:');
@@ -829,7 +829,7 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
 
                 # Klik tombol server untuk memunculkan iframe
                 page.evaluate("""() => {
-                    let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
+                    let btns = document.querySelectorAll('.btn-sv, .btn-svr, .server-btn, .gmr-player-btn');
                     if (btns.length > 0) btns[0].click();
                 }""")
 
@@ -1016,9 +1016,9 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                 except Exception:
                     pass
 
-                # Tunggu .btn-svr muncul (max 25 detik)
+                # Tunggu .btn-sv / .btn-svr muncul (max 25 detik)
                 for _ in range(25):
-                    btn_count = page.evaluate("() => document.querySelectorAll('.btn-svr').length")
+                    btn_count = page.evaluate("() => document.querySelectorAll('.btn-sv, .btn-svr').length")
                     if btn_count > 0:
                         break
                     page.wait_for_timeout(1000)
@@ -1028,7 +1028,7 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
 
                 # Ambil daftar episode buttons
                 ep_buttons = page.evaluate("""() => {
-                    const btns = document.querySelectorAll('.btn-svr');
+                    const btns = document.querySelectorAll('.btn-sv, .btn-svr');
                     return Array.from(btns).map((b, i) => ({
                         index: i,
                         text: b.textContent.trim(),
@@ -1097,7 +1097,7 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
 
                             # Klik tombol episode
                             page.evaluate(f"""() => {{
-                                const btns = document.querySelectorAll('.btn-svr');
+                                const btns = document.querySelectorAll('.btn-sv, .btn-svr');
                                 if (btns[{idx}]) btns[{idx}].click();
                             }}""")
 
@@ -1174,7 +1174,7 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
 
                         # Tunggu buttons
                         for _ in range(25):
-                            btn_count = page.evaluate("() => document.querySelectorAll('.btn-svr').length")
+                            btn_count = page.evaluate("() => document.querySelectorAll('.btn-sv, .btn-svr').length")
                             if btn_count > 0:
                                 break
                             page.wait_for_timeout(1000)
@@ -1188,7 +1188,7 @@ def _scrape_drakorkita_episodes(detail_url: str, total_eps: int) -> list[dict]:
                                 }""")
 
                                 page.evaluate(f"""() => {{
-                                    const btns = document.querySelectorAll('.btn-svr');
+                                    const btns = document.querySelectorAll('.btn-sv, .btn-svr');
                                     if (btns[{miss_idx}]) btns[{miss_idx}].click();
                                 }}""")
                                 page.wait_for_timeout(2000)
