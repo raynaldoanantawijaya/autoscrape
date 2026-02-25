@@ -1,43 +1,580 @@
+#!/usr/bin/env python3
+"""
+╔══════════════════════════════════════════════════════════════╗
+║  Universal Film/Drama Scraper (Menu 4: Link Lainnya)         ║
+║  Teknik gabungan dari DrakorKita + ZeldaEternity + Azarug    ║
+║  • Listing: requests+BS4 structured card selectors           ║
+║  • Detail: requests+BS4 metadata, episodes, downloads        ║
+║  • Video: AJAX via admin-ajax.php, Playwright fallback       ║
+║  • Verifikasi: Retry hingga 3x untuk setiap episode          ║
+╚══════════════════════════════════════════════════════════════╝
+"""
+
 import os
 import re
 import json
 import time
+import logging
+import threading
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
+from urllib.parse import urljoin
 
+import requests
+from bs4 import BeautifulSoup
+
+# ─── Setup ───────────────────────────────────────────────────────────────────
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hasil_scrape")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-}
-import logging
-
 log = logging.getLogger("scrapers.custom")
 
-# Iklan yang akan dilewati saat mencari iframe
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "Chrome/122.0.0.0 Safari/537.36",
+    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
+
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
+
+# Domain iklan yang harus diabaikan pada iframe
 AD_DOMAINS = [
     'dtscout.com', 'doubleclick', 'googlesyndication', 'adnxs.com',
     'popads', 'popcash', 'propeller', 'onclick', 'adsterra',
-    'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com'
+    'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
+    'klik.best',
 ]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UTILITAS UMUM
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _get_html(url: str, retries: int = 3) -> str | None:
+    """Fetch HTML dengan retry progresif."""
+    for attempt in range(retries):
+        try:
+            timeout = 15 + (attempt * 10)
+            resp = SESSION.get(url, timeout=timeout)
+            resp.raise_for_status()
+            return resp.text
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(2)
+            else:
+                log.debug(f"Gagal fetch {url} setelah {retries}x: {e}")
+    return None
+
 
 def _is_ad_iframe(src: str) -> bool:
     """Deteksi apakah iframe src adalah iklan/sosmed."""
     if not src or src.startswith('about:'):
         return True
-    
     src_lower = src.lower()
     return any(ad in src_lower for ad in AD_DOMAINS)
 
+
+def _get_base_url(url: str) -> str:
+    """Ekstrak base URL (scheme + domain)."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _extract_post_id(soup) -> str:
+    """Ekstrak WordPress post ID dari class body (postid-XXXXX) atau article."""
+    body = soup.select_one("body")
+    if body:
+        for cls in body.get("class", []):
+            if cls.startswith("postid-"):
+                return cls.replace("postid-", "")
+    article = soup.select_one("article")
+    if article:
+        art_id = article.get("id", "")
+        m = re.search(r'post-(\d+)', art_id)
+        if m:
+            return m.group(1)
+    # Fallback: cari di shortlink atau input hidden
+    shortlink = soup.select_one('link[rel="shortlink"]')
+    if shortlink:
+        href = shortlink.get("href", "")
+        m = re.search(r'\?p=(\d+)', href)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def _title_clean(t: str) -> str:
+    """Bersihkan judul dari prefix/suffix umum."""
+    t = re.sub(r'\s+', ' ', t).strip()
+    # Hapus prefix umum
+    for prefix in ["Nonton ", "Download ", "Streaming ", "Permalink ke: "]:
+        if t.startswith(prefix):
+            t = t[len(prefix):]
+    # Hapus suffix umum
+    t = re.sub(r'\s*Subtitle Indonesia\s*$', '', t, flags=re.I)
+    t = re.sub(r'\s*Sub Indo\s*$', '', t, flags=re.I)
+    return t.strip()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FASE 1: LISTING CRAWLER — Temukan daftar film dari halaman beranda/kategori
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Selector prioritas untuk menemukan "kartu film" di berbagai theme WordPress
+CARD_SELECTORS = [
+    "article.item",                     # Azarug / LK21 / Rebahin theme
+    ".gmr-box-content",                 # GMR theme
+    "article",                          # ZeldaEternity / generic WP theme
+    "a[href*='/detail/']",             # DrakorKita pattern (direct link cards)
+    ".bsx",                             # Alternative WP streaming theme
+    ".movie-item",                      # Movie theme
+]
+
+TITLE_SELECTORS = [
+    ".entry-title a", "h2 a", "h3 a", ".title a", ".tt a", "h4 a",
+]
+
+
+def _fetch_listing_page(url: str, base_url: str) -> list[dict]:
+    """Ekstrak daftar film dari satu halaman listing menggunakan structured selectors."""
+    html = _get_html(url)
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, "html.parser")
+    items = []
+
+    # Coba setiap selector sampai menemukan kartu film
+    cards = []
+    used_selector = ""
+    for selector in CARD_SELECTORS:
+        cards = soup.select(selector)
+        if cards:
+            used_selector = selector
+            break
+
+    if not cards:
+        log.debug(f"  Tidak ada kartu film ditemukan di {url}")
+        return []
+
+    log.debug(f"  Menggunakan selector '{used_selector}' — {len(cards)} kartu")
+
+    for card in cards:
+        # Cari link dan judul
+        title = ""
+        detail_url = ""
+
+        # Metode 1: Cari dari title selectors di dalam kartu
+        for ts in TITLE_SELECTORS:
+            title_el = card.select_one(ts)
+            if title_el:
+                title = title_el.get_text(strip=True)
+                detail_url = title_el.get("href", "")
+                break
+
+        # Metode 2: Jika kartu itu sendiri adalah <a> tag (DrakorKita style)
+        if not detail_url and card.name == "a":
+            detail_url = card.get("href", "")
+            # Cari judul dari child elements
+            for child_sel in [".title", "h3", "h4", ".name", ".tt"]:
+                te = card.select_one(child_sel)
+                if te:
+                    title = te.get_text(strip=True)
+                    break
+            if not title:
+                # Fallback: gunakan teks terpanjang yang bukan durasi
+                for txt in card.stripped_strings:
+                    if len(txt) > 5 and not re.match(r'^\d{1,2}:\d{2}', txt):
+                        title = txt
+                        break
+
+        # Metode 3: Fallback ke <a> pertama di dalam kartu
+        if not detail_url:
+            first_a = card.select_one("a[href]")
+            if first_a:
+                detail_url = first_a.get("href", "")
+                if not title:
+                    title = first_a.get("title", "") or first_a.get_text(strip=True)
+
+        if not detail_url or not title:
+            continue
+
+        # Normalisasi URL
+        if not detail_url.startswith("http"):
+            detail_url = urljoin(base_url, detail_url)
+
+        # Filter: skip link yang bukan halaman film
+        url_lower = detail_url.lower()
+        skip_patterns = ['/genre/', '/category/', '/tag/', '/year/', '/country/',
+                         '/page/', '/author/', 'javascript:', '#', 'mailto:',
+                         'facebook.com', 'twitter.com', 'instagram.com']
+        if any(p in url_lower for p in skip_patterns):
+            continue
+
+        # Bersihkan judul
+        title = _title_clean(title)
+        if len(title) < 3:
+            continue
+
+        # Poster
+        poster = ""
+        img = card.select_one("img")
+        if img:
+            poster = img.get("data-src") or img.get("src") or ""
+
+        # Quality badge
+        quality = ""
+        q_el = card.select_one(".gmr-quality-item a, .gmr-quality-item, .quality")
+        if q_el:
+            quality = q_el.get_text(strip=True)
+
+        # Rating
+        rating = ""
+        r_el = card.select_one(".gmr-rating-item, .rating")
+        if r_el:
+            rating = r_el.get_text(strip=True)
+
+        items.append({
+            "title": title,
+            "detail_url": detail_url,
+            "poster": poster,
+            "quality": quality,
+            "rating": rating,
+        })
+
+    return items
+
+
+def _detect_next_page(soup, current_url: str, base_url: str) -> str | None:
+    """Deteksi URL halaman selanjutnya dari pagination."""
+    # Metode 1: CSS selector klasik
+    next_btn = soup.select_one('a.next.page-numbers, a.next, a[rel="next"], .pagination .next a, .nav-next a')
+    if next_btn:
+        href = next_btn.get("href", "")
+        if href and href != current_url:
+            return href if href.startswith("http") else urljoin(base_url, href)
+
+    # Metode 2: Cari berdasarkan teks "Next" atau "→"
+    for a in soup.select('a[href]'):
+        txt = a.get_text(strip=True).lower()
+        if txt in ['next', 'next »', '»', '→', 'selanjutnya', 'berikutnya']:
+            href = a.get("href", "")
+            if href and href != current_url and 'javascript' not in href:
+                return href if href.startswith("http") else urljoin(base_url, href)
+
+    return None
+
+
+def crawl_film_listings(start_url: str, max_pages: int = 10, max_films: int = 500) -> list[dict]:
+    """Crawl daftar film dari halaman beranda/kategori dengan paging otomatis."""
+    base_url = _get_base_url(start_url)
+    all_films = []
+    seen_urls = set()
+    current_url = start_url
+
+    for page_num in range(1, max_pages + 1):
+        log.info(f"  📄 Halaman {page_num}: {current_url}")
+
+        films = _fetch_listing_page(current_url, base_url)
+
+        # Deduplicate
+        new_count = 0
+        for f in films:
+            if f["detail_url"] not in seen_urls:
+                seen_urls.add(f["detail_url"])
+                all_films.append(f)
+                new_count += 1
+
+        log.info(f"     → {new_count} judul baru (total: {len(all_films)})")
+
+        if not films:
+            break
+
+        if len(all_films) >= max_films:
+            log.info(f"  ⚠ Mencapai batas {max_films} film, berhenti.")
+            break
+
+        # Cari halaman berikutnya
+        html = _get_html(current_url)
+        if html:
+            soup = BeautifulSoup(html, "html.parser")
+            next_url = _detect_next_page(soup, current_url, base_url)
+            if next_url and next_url != current_url:
+                current_url = next_url
+                time.sleep(0.5)
+            else:
+                # Coba pola /page/N/ manual
+                if page_num == 1 and '?' not in start_url:
+                    next_try = f"{start_url.rstrip('/')}/page/2/"
+                    test_html = _get_html(next_try)
+                    if test_html:
+                        current_url = next_try
+                        time.sleep(0.5)
+                    else:
+                        break
+                else:
+                    # Increment page number di URL
+                    m = re.search(r'/page/(\d+)/', current_url)
+                    if m:
+                        next_num = int(m.group(1)) + 1
+                        current_url = re.sub(r'/page/\d+/', f'/page/{next_num}/', current_url)
+                        time.sleep(0.5)
+                    else:
+                        break
+        else:
+            break
+
+    return all_films
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FASE 2: DETAIL SCRAPER — Scrape metadata, episodes, downloads dari 1 film
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _fetch_video_embeds_via_ajax(post_id: str, page_url: str, base_url: str) -> list[dict]:
+    """Ambil video embed URLs via WordPress AJAX endpoint (teknik ZeldaEternity)."""
+    embeds = []
+    if not post_id:
+        return embeds
+
+    ajax_url = f"{base_url}/wp-admin/admin-ajax.php"
+
+    for tab in ["p1", "p2", "p3", "p4"]:
+        try:
+            resp = SESSION.post(ajax_url, data={
+                "action": "muvipro_player_content",
+                "tab": tab,
+                "post_id": post_id,
+            }, headers={
+                **HEADERS,
+                "Referer": page_url,
+                "X-Requested-With": "XMLHttpRequest",
+            }, timeout=10)
+
+            if resp.status_code == 200 and resp.text.strip():
+                frag = BeautifulSoup(resp.text, "html.parser")
+                iframe = frag.select_one("iframe")
+                if iframe:
+                    src = iframe.get("src") or iframe.get("SRC") or ""
+                    if src and not _is_ad_iframe(src):
+                        embeds.append({"server": tab, "url": src})
+        except Exception:
+            pass
+
+    return embeds
+
+
+def scrape_detail(detail_url: str, base_url: str) -> dict:
+    """Scrape halaman detail film/series: metadata, episodes, downloads, video."""
+    result = {
+        "title": "",
+        "detail_url": detail_url,
+        "type": "Movie",
+        "poster": "",
+        "sinopsis": "",
+        "genres": [],
+        "cast": [],
+        "directors": [],
+        "year": "",
+        "country": "",
+        "rating": "",
+        "quality": "",
+        "duration": "",
+        "episodes": [],
+        "total_episodes": 0,
+        "download_links": [],
+        "video_embed": "",
+        "video_servers": [],
+    }
+
+    html = _get_html(detail_url, retries=5)
+    if not html:
+        return result
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # ── JUDUL ──
+    h1 = soup.select_one("h1.entry-title, h1[itemprop='headline'], h1")
+    if h1:
+        result["title"] = _title_clean(h1.get_text(strip=True))
+
+    # Fallback dari slug
+    if not result["title"]:
+        slug = detail_url.rstrip("/").split("/")[-1]
+        parts = slug.split("-")
+        if len(parts) >= 2 and len(parts[-1]) <= 5 and parts[-1].isalnum():
+            parts = parts[:-1]
+        result["title"] = " ".join(parts).title()
+
+    # ── POSTER ──
+    for sel in ["img.wp-post-image", ".thumb img", ".gmr-movie-data img",
+                 ".poster img", "img[itemprop='image']"]:
+        img = soup.select_one(sel)
+        if img:
+            result["poster"] = img.get("data-src") or img.get("src") or ""
+            break
+
+    # ── SINOPSIS ──
+    content = soup.select_one(".entry-content, .desc, .sinopsis")
+    if content:
+        paragraphs = content.select("p")
+        valid = [p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30]
+        result["sinopsis"] = "\n".join(valid[:3])
+
+    if not result["sinopsis"]:
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        if meta_desc:
+            result["sinopsis"] = meta_desc.get("content", "")
+
+    # ── METADATA (.gmr-moviedata / .gmr-movie-meta / .infox .spe) ──
+    meta_selectors = [".gmr-moviedata", ".gmr-movie-meta", ".infox .spe span", ".anf li"]
+    for meta_sel in meta_selectors:
+        for meta_div in soup.select(meta_sel):
+            label_full = meta_div.get_text(strip=True).lower()
+
+            if "genre" in label_full:
+                result["genres"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
+                                   [g.strip() for g in label_full.split(":")[-1].split(",") if g.strip()]
+            elif any(k in label_full for k in ["pemain", "cast", "bintang", "aktor"]):
+                result["cast"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
+                                 [c.strip() for c in label_full.split(":")[-1].split(",") if c.strip()]
+            elif any(k in label_full for k in ["sutradara", "director", "direksi"]):
+                result["directors"] = [a.get_text(strip=True) for a in meta_div.select("a")] or \
+                                      [d.strip() for d in label_full.split(":")[-1].split(",") if d.strip()]
+            elif any(k in label_full for k in ["rilis", "tahun", "year", "release"]):
+                links = meta_div.select("a")
+                if links:
+                    result["year"] = links[0].get_text(strip=True)
+                else:
+                    m = re.search(r'(\d{4})', label_full)
+                    if m:
+                        result["year"] = m.group(1)
+            elif any(k in label_full for k in ["negara", "country"]):
+                result["country"] = ", ".join(a.get_text(strip=True) for a in meta_div.select("a"))
+            elif any(k in label_full for k in ["rating", "imdb"]):
+                m = re.search(r'[\d.]+', label_full)
+                if m:
+                    result["rating"] = m.group(0)
+            elif any(k in label_full for k in ["kualitas", "quality"]):
+                links = meta_div.select("a")
+                result["quality"] = links[0].get_text(strip=True) if links else ""
+            elif any(k in label_full for k in ["durasi", "duration"]):
+                m = re.search(r'[\d]+\s*(?:min|menit|jam)', label_full, re.IGNORECASE)
+                result["duration"] = m.group(0) if m else ""
+
+    # ── EPISODE LIST ──
+    ep_selectors = [
+        ".gmr-listseries a",
+        ".episodelist a",
+        "ul.lstep li a",
+        ".list-episode li a",
+        ".eplister li a",
+    ]
+    episodes = []
+    seen_ep = set()
+    for ep_sel in ep_selectors:
+        for ep_link in soup.select(ep_sel):
+            ep_url = ep_link.get("href", "")
+            ep_text = ep_link.get_text(strip=True)
+            if ep_url and ep_url not in seen_ep and ep_text:
+                # Filter: hanya link episode yang valid (biasanya /eps/ atau /episode/)
+                if not ep_url.startswith("http"):
+                    ep_url = urljoin(base_url, ep_url)
+                seen_ep.add(ep_url)
+                episodes.append({"label": ep_text, "url": ep_url})
+
+    if episodes:
+        result["type"] = "TV Series"
+        result["total_episodes"] = len(episodes)
+        result["episodes"] = episodes
+
+    # ── DOWNLOAD LINKS ──
+    downloads = []
+    dl_area = soup.select_one("#download, .download, .gmr-download-list, .soraddlx")
+    if dl_area:
+        for a in dl_area.select("a[href]"):
+            href, text = a.get("href", ""), a.get_text(strip=True)
+            if href and "javascript" not in href.lower() and "klik.best" not in href:
+                downloads.append({"text": text or "Download", "url": href})
+    else:
+        # Fallback: cari tombol download
+        for a in soup.select("a[href]"):
+            if "download" in a.get_text(strip=True).lower():
+                href = a.get("href", "")
+                if href and "javascript" not in href.lower():
+                    downloads.append({"text": a.get_text(strip=True), "url": href})
+
+    result["download_links"] = downloads
+
+    # ── VIDEO EMBED via AJAX (cepat, tanpa browser) ──
+    post_id = _extract_post_id(soup)
+    if post_id:
+        embeds = _fetch_video_embeds_via_ajax(post_id, detail_url, base_url)
+        if embeds:
+            result["video_embed"] = embeds[0]["url"]
+            result["video_servers"] = embeds
+
+    # ── FALLBACK: Jika AJAX gagal, cek iframe statis ──
+    if not result["video_embed"]:
+        iframe = soup.select_one("iframe[src]")
+        if iframe:
+            src = iframe.get("src", "")
+            if not _is_ad_iframe(src):
+                result["video_embed"] = src
+
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FASE 3: EPISODE SCRAPER — Scrape video embed per episode DENGAN VERIFIKASI
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _scrape_episode_video(ep_url: str, base_url: str) -> dict:
+    """Scrape video embed dari halaman episode tunggal."""
+    result = {"url": ep_url, "video_embed": "", "video_servers": [], "download_links": []}
+
+    html = _get_html(ep_url, retries=3)
+    if not html:
+        return result
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # AJAX dulu (paling cepat)
+    post_id = _extract_post_id(soup)
+    if post_id:
+        embeds = _fetch_video_embeds_via_ajax(post_id, ep_url, base_url)
+        if embeds:
+            result["video_embed"] = embeds[0]["url"]
+            result["video_servers"] = embeds
+
+    # Fallback iframe statis
+    if not result["video_embed"]:
+        iframe = soup.select_one("iframe[src]")
+        if iframe:
+            src = iframe.get("src", "")
+            if not _is_ad_iframe(src):
+                result["video_embed"] = src
+
+    # Download links episode
+    dl_area = soup.select_one("#download, .download, .gmr-download-list, .soraddlx")
+    if dl_area:
+        for a in dl_area.select("a[href]"):
+            href, text = a.get("href", ""), a.get_text(strip=True)
+            if href and "javascript" not in href.lower() and "klik.best" not in href:
+                result["download_links"].append({"text": text or "Download", "url": href})
+
+    return result
+
+
 def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
-    """Buka satu halaman dan ambil semua iframe valid (bukan iklan)."""
+    """Playwright fallback: Buka halaman dan ambil semua iframe valid (bukan iklan)."""
     from playwright.sync_api import sync_playwright
-    
+
     iframes = []
-    
+
     for _retry in range(3):
         try:
             with sync_playwright() as p:
@@ -51,7 +588,7 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
                     browser = p.chromium.launch(headless=True)
 
                 ctx = browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
                     viewport={"width": 1366, "height": 768}
                 )
                 page = ctx.new_page()
@@ -60,433 +597,243 @@ def extract_iframe_from_page(url: str, browser_path: str = None) -> list[str]:
                     page.goto(url, wait_until="domcontentloaded", timeout=25000)
                 except Exception:
                     pass
-                
-                # Tunggu sedikit agar iframe video memuat
+
                 page.wait_for_timeout(3000)
 
-                # Klik tombol server untuk memunculkan iframe (Pola Drakorkita / Auto-load)
+                # Klik tombol server untuk memunculkan iframe
                 page.evaluate("""() => {
                     let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
-                    if (btns.length > 0) btns[0].click(); // Klik server pertama
+                    if (btns.length > 0) btns[0].click();
                 }""")
                 page.wait_for_timeout(2000)
 
-                # Ekstrak semua iframe
                 frame_srcs = page.evaluate("""() => {
                     return Array.from(document.querySelectorAll('iframe')).map(f => f.src);
                 }""")
-                
+
                 for src in frame_srcs:
                     if not _is_ad_iframe(src):
                         iframes.append(src)
-                
+
                 browser.close()
                 return iframes
-                
+
         except Exception as e:
             err_msg = str(e).lower()
             if "execution context" in err_msg or "target closed" in err_msg:
                 time.sleep(2)
                 continue
             return []
-            
+
     return []
 
-def heuristik_cari_episode(page, base_url: str):
-    """Cari link-link yang kemungkinan adalah link episode (Gabungan Drakorkita & GMR Theme)."""
-    return page.evaluate("""() => {
-        let results = [];
-        let seen = new Set();
-        
-        // Pola Zelda/Azarug (.gmr-listseries a) dan pola umum episode list
-        let links = document.querySelectorAll('.gmr-listseries a, .episodelist a, a[href*="/eps/"], a[href*="/episode/"], .episodes a, ul.lstep li a, .list-episode li a, [class*="episode"] a, #daftarepisode li a, .eplister li a, .bixbox li a, ul.eps_lst li a, .ep_lst li a, a.episode-link');
-        
-        for (let a of links) {
-            let url = a.href;
-            if (url && !seen.has(url)) {
-                seen.add(url);
-                results.push({label: a.innerText.trim() || 'Episode', url: url});
-            }
-        }
-        
-        // Reverse if looks like descending
-        if (results.length > 1) {
-            let first = results[0].label.match(/\\d+/);
-            let last = results[results.length-1].label.match(/\\d+/);
-            if (first && last && parseInt(first[0]) > parseInt(last[0])) {
-                results.reverse();
-            }
-        }
-        
-        return results;
-    }""")
 
-def heuristik_ekstrak_metadata(page):
-    """Ekstrak Metadata Universal (Sinopsis, Genre, Cast, Download Links)."""
-    return page.evaluate("""() => {
-        let meta = {
-            sinopsis: '',
-            genres: [],
-            cast: [],
-            rating: '',
-            download_links: []
-        };
-        
-        // 1. Sinopsis
-        let desc = document.querySelector('.entry-content p, .desc, .sinopsis, [itemprop="description"]');
-        if (desc) {
-            meta.sinopsis = desc.innerText.trim().substring(0, 500);
-        }
-        
-        // 2. Genres & Cast & Rating
-        document.querySelectorAll('.gmr-moviedata, .infox, .spe, .meta-data').forEach(el => {
-            let text = el.innerText.toLowerCase();
-            if (text.includes('genre')) {
-                let links = el.querySelectorAll('a');
-                if (links.length) meta.genres = Array.from(links).map(a => a.innerText.trim());
-            }
-            if (text.includes('cast') || text.includes('aktor') || text.includes('pemain') || text.includes('bintang')) {
-                let links = el.querySelectorAll('a');
-                if (links.length) meta.cast = Array.from(links).map(a => a.innerText.trim());
-            }
-            if (text.includes('rating') || text.includes('imdb')) {
-                let m = el.innerText.match(/[\\d.]+/);
-                if (m) meta.rating = m[0];
-            }
-        });
-        
-        // 3. Download Links
-        document.querySelectorAll('#download a, .gmr-download-list a, .soraddlx a, .dl-box a').forEach(a => {
-            if (a.href && !a.href.includes('javascript') && !a.href.includes('klik.best')) {
-                let text = a.innerText.trim();
-                meta.download_links.push({ text: text || 'Download', url: a.href });
-            }
-        });
-        
-        return meta;
-    }""")
+def _scrape_episodes_with_verification(episodes: list, base_url: str, max_retries: int = 3) -> list:
+    """Scrape semua episode secara paralel DENGAN verifikasi retry."""
+    log.info(f"     📺 Scraping {len(episodes)} episode secara paralel...")
 
-def heuristik_cari_film_list(page, base_url: str):
-    """Cari link yang kemungkinan menuju ke halaman Film/Drama dari halaman beranda/kategori."""
-    links = page.evaluate("""() => {
-        return Array.from(document.querySelectorAll('a')).map(a => {
-            return {
-                text: a.innerText.trim(),
-                href: a.href,
-                className: a.className,
-                title: a.title
-            }
-        });
-    }""")
-    
-    film_links = []
-    seen = set()
-    
-    # Keyword penghindar (jangan klik link ini)
-    blacklist_url = [
-        'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com',
-        '/genre/', '/category/', '/tag/', '/year/', '/country/', '/page/',
-        '/about', '/contact', '/dmca', '/login', '/register', 't.me/',
-        '#', 'javascript:', 'mailto:',
-        '/director/', '/cast/', '/actor/', '/author/', '/profile/', '/rilis/', '/type/', '/drama/'
-    ]
-    
-    blacklist_exact = [
-        'next', 'next »', '« prev', 'prev', 'home', 'beranda', 'semua', 'selanjutnya', 'sebelumnya',
-        'login', 'register', 'contact', 'about', 'drama', 'science fiction', 'action', 'comedy', 'romance'
-    ]
-    
-    blacklist_partial = [
-        'pasang iklan', 'archive', 'iklan', 'pasang'
-    ]
-    
-    for link in links:
-        url = link['href']
-        text = link['title'] or link['text']
-        
-        if not url or not text:
-            continue
-            
-        url_lower = url.lower()
-        text_lower = text.lower()
-        
-        # Panjang teks terlalu pendek biasanya hanya menu/icon
-        if len(text.strip()) < 5:
-            continue
-            
-        if any(b in url_lower for b in blacklist_url):
-            continue
-            
-        if text_lower in blacklist_exact:
-            continue
-            
-        if any(b in text_lower for b in blacklist_partial):
-            continue
-            
-        # Asumsi heuristik: 
-        # 1. URL menuju ke path direktori yang cukup panjang (biasanya slug judul film)
-        # Atau 2. Ada pola movie / tv / series di URL
-        url_parts = [p for p in url.rstrip('/').split('/') if p]
-        is_film = False
-        
-        # Validasi struktur URL
-        if base_url in url and len(url_parts) >= 3:
-            slug = url_parts[-1]
-            if len(slug) > 8 and '-' in slug: # slug kemungkinan judul film
-                is_film = True
-        
-        # Pola eksplisit
-        if '/movie/' in url_lower or '/tv/' in url_lower or '/series/' in url_lower or '/drama/' in url_lower:
-            is_film = True
-            
-        if is_film and url not in seen:
-            seen.add(url)
-            film_links.append({"title": title_clean(text), "url": url})
-            
-    return film_links
-
-def title_clean(t):
-    # Bersihkan spasi kosong dan newline berlebih
-    if not t:
-        return ""
-    t = re.sub(r'^(?i)(Permalink ke:|Nonton Film|Streaming Drama Korea|Nonton Streaming)\s*', '', t)
-    return re.sub(r'\s+', ' ', t).strip()
-
-def run_custom_scrape(url: str, output_name: str = "custom_film"):
-    """Pipeline scraper heuristik: Deteksi Halaman Utama vs Halaman Detail Film."""
-    log.info(f"🚀 Memindai Struktur URL: {url}")
-    timestamp = int(time.time())
-    
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        log.error("Playwright belum terinstall.")
-        return
-        
     browser_path = None
-    for candidate in ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"]:
+    for candidate in ["/usr/bin/chromium", "/usr/bin/chromium-browser",
+                      "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"]:
         if os.path.isfile(candidate):
             browser_path = candidate
             break
 
-    found_films = []
-    
-    # ── FASE 1: Buka halaman & Deteksi (Katalog vs Single Film) ──
-    with sync_playwright() as p:
-        launch_args = {"headless": True}
-        if browser_path:
-            launch_args["executable_path"] = browser_path
-            
-        try:
-            browser = p.chromium.launch(**launch_args)
-        except:
-            browser = p.chromium.launch(headless=True)
-            
-        ctx = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
-        page = ctx.new_page()
-        
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(3000)
-            
-            # Cek apakai ini katalog film atau sudah masuk halaman detail film tunggal
-            episodes_links = heuristik_cari_episode(page, url)
-            frame_srcs = page.evaluate("""() => Array.from(document.querySelectorAll('iframe')).map(f => f.src);""")
-            main_iframes = [s for s in frame_srcs if not _is_ad_iframe(s)]
-            
-            if episodes_links or main_iframes:
-                # Ini kemungkinan besar SUDAH halaman Film detail tunggal
-                title = page.title()
-                if title:
-                    title = title.split('-')[0].split('|')[0].strip()
-                found_films = [{"title": title or "Unknown", "url": url}]
-                log.info(f"✓ URL ini terdeteksi sebagai Halaman Detail Film (Episode: {len(episodes_links)}, Iframe: {len(main_iframes)})")
-            else:
-                # Ini kemungkinan Halaman Beranda / Kategori Web
-                log.info("✓ Tidak ada video/episode di URL ini. Memindai daftar tautan film dengan Multiple Paging...")
-                
-                base_url = url.split('://')[0] + '://' + url.split('://')[1].split('/')[0]
-                
-                # Coba paging sampai 10 halaman
-                for page_num in range(1, 11):
-                    films_on_page = heuristik_cari_film_list(page, base_url)
-                    
-                    # Tambahkan jika belum ada
-                    new_films = []
-                    for f in films_on_page:
-                        if not any(existing['url'] == f['url'] for existing in found_films):
-                            new_films.append(f)
-                            
-                    found_films.extend(new_films)
-                    log.info(f"  → Halaman {page_num}: Menemukan {len(new_films)} film baru. (Total: {len(found_films)})")
-                    
-                    if len(found_films) > 500:
-                        log.info("  → Mencapai batas wajar pencarian (500+ film). Berhenti mencari halaman selanjutnya.")
-                        break
-                        
-                    # Deteksi tombol "Next"
-                    next_url = page.evaluate("""() => {
-                        let nextBtn = document.querySelector('.next, .pagination-next, a.next, a[rel="next"]');
-                        if (nextBtn && nextBtn.href) return nextBtn.href;
-                        
-                        // Cari berdasarkan text
-                        let links = Array.from(document.querySelectorAll('a'));
-                        let nextLink = links.find(a => {
-                            let t = a.innerText.trim().toLowerCase();
-                            return t === 'next' || t === 'next »' || t === 'selanjutnya' || t === 'berikutnya';
-                        });
-                        return nextLink ? nextLink.href : null;
-                    }""")
-                    
-                    if next_url and next_url != page.url:
-                        try:
-                            page.goto(next_url, wait_until="domcontentloaded", timeout=15000)
-                            page.wait_for_timeout(2000)
-                        except:
-                            break
-                    else:
-                        break # Tidak ada halaman next lagi
-                        
-                if not found_films:
-                    log.error("✗ Heuristik gagal menemukan link film atau episode aktif di halaman ini.")
-                    browser.close()
-                    return
-                log.info(f"✓ Selesai scanning. Total {len(found_films)} judul unik ditemukan.")
-                
-        except Exception as e:
-            log.error(f"Gagal memuat URL: {e}")
-            browser.close()
-            return
-            
-        browser.close()
+    # Ronde 1: Requests + AJAX (cepat)
+    results = [None] * len(episodes)
 
-    # ── FASE 2: Tanya User (Jika banyak film) ──
-    def _local_ask(prompt: str, default: str = "") -> str:
+    def _worker(idx, ep):
+        ep_data = _scrape_episode_video(ep["url"], base_url)
+        return idx, ep_data
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futures = {ex.submit(_worker, i, ep): i for i, ep in enumerate(episodes)}
+        for f in as_completed(futures):
+            idx, data = f.result()
+            results[idx] = {
+                "label": episodes[idx]["label"],
+                "url": episodes[idx]["url"],
+                "video_embed": data["video_embed"],
+                "video_servers": data["video_servers"],
+                "download_links": data["download_links"],
+            }
+
+    # Ronde 2: Verifikasi — episode yang GAGAL mendapat video, coba dengan Playwright
+    missing = [(i, results[i]) for i in range(len(results))
+               if results[i] and not results[i]["video_embed"]]
+
+    if missing:
+        log.info(f"     ⚠ {len(missing)} episode tanpa video. Mengulang dengan Playwright...")
+        for retry_round in range(1, max_retries + 1):
+            still_missing = []
+            for i, ep in missing:
+                try:
+                    iframes = extract_iframe_from_page(ep["url"], browser_path)
+                    if iframes:
+                        results[i]["video_embed"] = iframes[0]
+                        results[i]["video_servers"] = [{"server": f"pw_{j}", "url": u} for j, u in enumerate(iframes)]
+                    else:
+                        still_missing.append((i, ep))
+                except Exception:
+                    still_missing.append((i, ep))
+
+            if not still_missing:
+                log.info(f"     ✓ Semua episode terverifikasi (ronde {retry_round})")
+                break
+            missing = still_missing
+            log.info(f"     ⚠ Masih {len(missing)} episode kosong setelah retry ronde {retry_round}")
+
+    # Hitungan final
+    filled = sum(1 for r in results if r and r.get("video_embed"))
+    log.info(f"     ✓ Episode selesai: {filled}/{len(episodes)} berhasil diambil videonya")
+
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PIPELINE UTAMA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_custom_scrape(url: str, output_name: str = "custom_film"):
+    """Pipeline scraper universal: Listing → Detail → Episode → Verifikasi → JSON."""
+    log.info(f"🚀 Memindai Struktur URL: {url}")
+    timestamp = int(time.time())
+    base_url = _get_base_url(url)
+
+    # ── FASE 1: Deteksi — Apakah ini Katalog atau Detail Film? ──
+    html = _get_html(url)
+    if not html:
+        log.error("✗ Gagal memuat URL.")
+        return
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Cek apakah ini halaman DETAIL (sudah ada episode list atau iframe video)
+    ep_check = soup.select(".gmr-listseries a, .episodelist a, ul.lstep li a")
+    iframe_check = soup.select_one("iframe[src]")
+    has_iframe = iframe_check and not _is_ad_iframe(iframe_check.get("src", ""))
+
+    found_films = []
+
+    if ep_check or has_iframe:
+        # Halaman DETAIL tunggal
+        title = ""
+        h1 = soup.select_one("h1.entry-title, h1")
+        if h1:
+            title = _title_clean(h1.get_text(strip=True))
+        found_films = [{"title": title or "Unknown", "detail_url": url}]
+        log.info(f"✓ URL terdeteksi sebagai Halaman Detail Film (Episode: {len(ep_check)}, Iframe: {'✓' if has_iframe else '✗'})")
+    else:
+        # Halaman KATALOG — crawl listing
+        log.info("✓ URL terdeteksi sebagai Halaman Katalog. Memulai crawling...")
+        found_films = crawl_film_listings(url, max_pages=10)
+
+        if not found_films:
+            log.error("✗ Tidak ada film ditemukan di halaman ini.")
+            return
+
+    log.info(f"✓ Total {len(found_films)} judul ditemukan.\n")
+
+    # ── FASE 2: Tanya User ──
+    def _ask(prompt, default=""):
         suffix = f" [{default}]" if default else ""
         try:
             val = input(f"  ?  {prompt}{suffix}: ").strip()
             return val if val else default
         except (KeyboardInterrupt, EOFError):
             return default
-    
+
     if len(found_films) > 1:
+        # Tampilkan preview
+        for i, f in enumerate(found_films[:8]):
+            title_short = f['title'][:60] if f.get('title') else 'Unknown'
+            print(f"  {i+1}. {title_short}")
+        if len(found_films) > 8:
+            print(f"  ... dan {len(found_films) - 8} lainnya.")
         print()
-        log.info(f"Daftar Film yang Ditemukan (Total: {len(found_films)}):")
-        for i, f in enumerate(found_films[:5]):
-            print(f"  {i+1}. {f['title'][:60]}")
-        if len(found_films) > 5:
-            print(f"  ... dan {len(found_films) - 5} lainnya.")
-        
-        print()
-        limit_str = _local_ask(f"Berapa film yang ingin di-scrape? (1-{len(found_films)}, 'all' untuk semua)", "all")
+
+        limit_str = _ask(f"Berapa film yang ingin di-scrape? (1-{len(found_films)}, 'all' untuk semua)", "all")
         if limit_str.lower() != 'all':
             try:
                 limit = int(limit_str)
                 found_films = found_films[:limit]
-            except:
+            except ValueError:
                 log.error("Input tidak valid, membatalkan.")
                 return
 
-    # ── FASE 3: Proses Scrape Penuh per Judul Secara BERSAMAAN ──
-    log.info(f"\n🚀 Memulai Auto-Scrape {len(found_films)} Film/Drama secara PARALEL...\n")
-    
+    # ── FASE 3: Scrape Detail + Episode secara Paralel ──
+    log.info(f"\n🚀 Memulai Deep-Scrape {len(found_films)} Film/Drama...\n")
+
     all_results = []
-    
-    # Limit max 5 worker pararel untuk scrape full page untuk mencegah lag parah
-    # karena masing-masing page juga bisa open 10 iframe paralel lagi di dalam.
     lock = threading.Lock()
     completed = [0]
-    
-    def _scrape_single_film(film_info):
-        f_url = film_info["url"]
-        f_title = film_info["title"]
-        
-        detail_data = {
-            "source_url": f_url,
-            "title": f_title,
-            "video_embeds": [],
-            "episodes": []
-        }
-        
+
+    def _process_film(film_info):
+        f_url = film_info.get("detail_url", film_info.get("url", ""))
+        f_title = film_info.get("title", "Unknown")
+
         try:
-            with sync_playwright() as p:
-                launch_args = {"headless": True}
-                if browser_path:
-                    launch_args["executable_path"] = browser_path
-                    
-                try:
-                    b_local = p.chromium.launch(**launch_args)
-                except:
-                    b_local = p.chromium.launch(headless=True)
-                    
-                ctx_local = b_local.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                page_local = ctx_local.new_page()
-                
-                try:
-                    page_local.goto(f_url, wait_until="domcontentloaded", timeout=30000)
-                    page_local.wait_for_timeout(3000)
-                    
-                    real_title = page_local.title()
-                    if real_title:
-                        detail_data["title"] = real_title.split('-')[0].split('|')[0].strip()
-                        
-                    # Ekstrak Metadata
-                    metadata = heuristik_ekstrak_metadata(page_local)
-                    detail_data.update(metadata)
-                        
-                    ep_links = heuristik_cari_episode(page_local, f_url)
-                    
-                    # Simulasi klik server untuk video utama
-                    page_local.evaluate("""() => {
-                        let btns = document.querySelectorAll('.btn-svr, .server-btn, .gmr-player-btn');
-                        if (btns.length > 0) btns[0].click();
-                    }""")
-                    page_local.wait_for_timeout(2000)
-                    
-                    frame_srcs = page_local.evaluate("""() => Array.from(document.querySelectorAll('iframe')).map(f => f.src);""")
-                    main_iframes = [s for s in frame_srcs if not _is_ad_iframe(s)]
-                    detail_data["video_embeds"] = main_iframes
-                except:
-                    ep_links = []
-                b_local.close()
+            # Scrape detail halaman film
+            detail = scrape_detail(f_url, base_url)
 
-            # Ekstrak Episode
-            if ep_links:
-                results_ep = [{"label": ep["label"], "url": ep["url"], "video_embeds": []} for ep in ep_links]
-                
-                # paralel episode dalam film
-                def _ep_worker(index, ep):
-                    results_ep[index]["video_embeds"] = extract_iframe_from_page(ep["url"], browser_path)
+            # Gunakan judul dari listing jika detail gagal mendapat judul
+            if not detail["title"]:
+                detail["title"] = f_title
 
-                # Gunakan 3 thread per film untuk episode agar komputer tidak crash
-                with ThreadPoolExecutor(max_workers=3) as ex_ep:
-                    t_ep = {ex_ep.submit(_ep_worker, i, ep): i for i, ep in enumerate(ep_links)}
-                    for f in as_completed(t_ep):
-                        f.result()
-                        
-                detail_data["episodes"] = results_ep
-                
-                # Verifikasi 1 Ronde Cukup untuk custom
-                missing = [(i, ep) for i, ep in enumerate(detail_data["episodes"]) if not ep["video_embeds"]]
-                for i, ep in missing:
-                    retry_frames = extract_iframe_from_page(ep["url"], browser_path)
-                    if retry_frames:
-                        detail_data["episodes"][i]["video_embeds"] = retry_frames
-            
+            # Jika ada episode, scrape semua episode dengan verifikasi
+            if detail["episodes"]:
+                ep_results = _scrape_episodes_with_verification(
+                    detail["episodes"], base_url, max_retries=2
+                )
+                detail["episode_embeds"] = ep_results
+                detail["total_episodes"] = len(ep_results)
+            else:
+                # Film biasa tanpa episode — video embed sudah diambil di scrape_detail
+                detail["episode_embeds"] = []
+
+                # Jika AJAX + static iframe gagal, coba Playwright sebagai backup
+                if not detail["video_embed"]:
+                    try:
+                        iframes = extract_iframe_from_page(f_url)
+                        if iframes:
+                            detail["video_embed"] = iframes[0]
+                            detail["video_servers"] = [{"server": f"pw_{j}", "url": u} for j, u in enumerate(iframes)]
+                    except Exception:
+                        pass
+
             with lock:
-                all_results.append(detail_data)
+                all_results.append(detail)
                 completed[0] += 1
-                v = len(detail_data["video_embeds"])
-                e = len(detail_data["episodes"])
-                log.info(f"  ✓ [{completed[0]}/{len(found_films)}] {detail_data['title'][:40]} | 🎬 {v} Vid | 📺 {e} Eps")
-                
-        except Exception as e:
+
+                # Log progress
+                v = 1 if detail.get("video_embed") else 0
+                e = detail.get("total_episodes", 0)
+                ep_filled = sum(1 for ep in detail.get("episode_embeds", []) if ep and ep.get("video_embed"))
+                dl = len(detail.get("download_links", []))
+                g = len(detail.get("genres", []))
+
+                parts = []
+                if e:
+                    parts.append(f"📺 {ep_filled}/{e} Eps")
+                if v:
+                    parts.append(f"🎬 Video ✓")
+                if dl:
+                    parts.append(f"📥 {dl} DL")
+                if g:
+                    parts.append(f"🏷️ {g} Genre")
+
+                summary = " | ".join(parts) if parts else "⚠ Minimal data"
+                title_short = detail['title'][:45] + "..." if len(detail['title']) > 45 else detail['title']
+                log.info(f"  ✓ [{completed[0]}/{len(found_films)}] {title_short} — {summary}")
+
+        except Exception as exc:
             with lock:
                 completed[0] += 1
-                log.error(f"  ✗ [{completed[0]}/{len(found_films)}] {f_title} Gagal: {e}")
+                log.error(f"  ✗ [{completed[0]}/{len(found_films)}] {f_title}: {exc}")
 
-    with ThreadPoolExecutor(max_workers=min(len(found_films), 3)) as executor:
-        tasks = {executor.submit(_scrape_single_film, f): f for f in found_films}
+    # Gunakan max 5 workers untuk detail (masing-masing bisa spawn sub-threads untuk episodes)
+    with ThreadPoolExecutor(max_workers=min(len(found_films), 5)) as executor:
+        tasks = {executor.submit(_process_film, f): f for f in found_films}
         try:
             for future in as_completed(tasks):
                 future.result()
@@ -497,20 +844,25 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
     # ── SIMPAN HASIL ──
     safe_name = re.sub(r'[^A-Za-z0-9_]+', '_', output_name).strip('_').lower()
     full_path = os.path.join(OUTPUT_DIR, f"{safe_name}_{timestamp}.json")
-    
-    with open(full_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "metadata": {
-                "source_url": url,
-                "scrape_date": datetime.now().isoformat(),
-                "technique": "heuristic_playwright_parallel",
-                "total_films": len(all_results)
-            },
-            "data": all_results
-        }, f, ensure_ascii=False, indent=2)
 
-    log.info(f"{'═'*60}")
-    log.info(f"✓ SELESAI AUTO-SCRAPE KUSTOM!")
+    output_data = {
+        "metadata": {
+            "scraper_name": "Universal Film Scraper v3.0",
+            "source_url": url,
+            "scrape_date": datetime.now().isoformat(),
+            "total_films": len(all_results),
+            "execution_time_sec": round(time.time() - timestamp, 1),
+        },
+        "data": all_results
+    }
+
+    with open(full_path, "w", encoding="utf-8") as f:
+        json.dump(output_data, f, ensure_ascii=False, indent=2)
+
+    size_kb = round(os.path.getsize(full_path) / 1024, 1)
+
+    log.info(f"\n{'═'*60}")
+    log.info(f"✓ SELESAI UNIVERSAL SCRAPE!")
     log.info(f"  Berhasil: {len(all_results)} Judul")
-    log.info(f"  File: {full_path}")
+    log.info(f"  File: {full_path} ({size_kb} KB)")
     log.info(f"{'═'*60}")
