@@ -1348,13 +1348,26 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
 
                 # Jika AJAX + static iframe gagal, coba Playwright sebagai backup
                 if not detail["video_embed"]:
-                    try:
-                        iframes = extract_iframe_from_page(f_url)
-                        if iframes:
-                            detail["video_embed"] = iframes[0]
-                            detail["video_servers"] = [{"server": f"pw_{j}", "url": u} for j, u in enumerate(iframes)]
-                    except Exception:
-                        pass
+                    # DrakorKita movie: gunakan handler khusus yang lebih robust
+                    if "/detail/" in f_url:
+                        log.info(f"     🎬 DrakorKita movie mode: mengambil video via Playwright...")
+                        try:
+                            ep_results = _scrape_drakorkita_episodes(f_url, 1)
+                            if ep_results and ep_results[0].get("video_embed"):
+                                detail["video_embed"] = ep_results[0]["video_embed"]
+                                detail["video_servers"] = ep_results[0].get("video_servers", [])
+                        except Exception:
+                            pass
+
+                    # Fallback umum untuk non-DrakorKita
+                    if not detail["video_embed"]:
+                        try:
+                            iframes = extract_iframe_from_page(f_url)
+                            if iframes:
+                                detail["video_embed"] = iframes[0]
+                                detail["video_servers"] = [{"server": f"pw_{j}", "url": u} for j, u in enumerate(iframes)]
+                        except Exception:
+                            pass
 
             with lock:
                 all_results.append(detail)
