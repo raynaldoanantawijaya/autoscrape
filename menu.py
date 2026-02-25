@@ -915,173 +915,64 @@ def _estimate_time(num_films: int, with_episodes: bool) -> str:
 
 
 def _run_drakorkita_submenu():
-    """Sub-menu DrakorKita dengan estimasi waktu."""
+    """Sub-menu DrakorKita — menggunakan Universal Scraper (scrape_custom_film.py)."""
     print(f"""
   {Fore.CYAN}Menu DrakorKita:{Style.RESET_ALL}
 
-    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — 1 judul (masukkan URL)
-    {Fore.YELLOW}2{Style.RESET_ALL}. Scrape Banyak Film — Pilih jumlah film
-    {Fore.YELLOW}3{Style.RESET_ALL}. Filter Genre — Pilih genre tertentu
+    {Fore.YELLOW}1{Style.RESET_ALL}. Quick Scrape — 1 judul (masukkan URL detail)
+    {Fore.YELLOW}2{Style.RESET_ALL}. Scrape dari beranda — Auto crawl semua halaman
+    {Fore.YELLOW}3{Style.RESET_ALL}. Masukkan URL DrakorKita lain (domain berbeda)
     {Fore.YELLOW}0{Style.RESET_ALL}. Kembali
 """)
     choice = ask("Pilihan (0-3)", "2")
 
-    try:
-        from scrape_drakorkita import quick_scrape, run_full_scrape
-    except ImportError as e:
-        err(f"Gagal import scrape_drakorkita: {e}")
-        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
-        return
-
     if choice == "0":
         return
 
-    elif choice == "1":
-        url = ask("URL detail drama (contoh: https://drakorkita3.nicewap.sbs/detail/...)")
+    try:
+        from scrape_custom_film import run_custom_scrape, scrape_detail, _get_base_url, _scrape_drakorkita_episodes
+    except ImportError as e:
+        err(f"Gagal import scrape_custom_film: {e}")
+        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
+        return
+
+    if choice == "1":
+        url = ask("URL detail drama (contoh: https://drakorindo39.kita.baby/detail/...)")
         if not url:
             err("URL kosong!")
             return
-        with_eps = ask("Scrape video embed per episode? (y/n)", "y").lower() == "y"
-
-        # Estimasi 1 judul
-        est = _estimate_time(1, with_eps)
-        print(f"\n  {Fore.CYAN}⏱  Estimasi waktu: {Fore.WHITE}{Style.BRIGHT}{est}{Style.RESET_ALL}")
-        confirm = ask("Lanjutkan? (y/n)", "y")
-        if confirm.lower() != "y":
-            info("Dibatalkan.")
-            return
 
         print()
-        result = quick_scrape(url, with_episodes=with_eps)
-        if result:
-            ok(f"Judul: {result.get('title', '?')}")
-            ok(f"Episode: {result.get('total_episodes', 0)}")
-            ok(f"Genre: {', '.join(result.get('genres', []))}")
-            ok(f"Cast: {', '.join(result.get('cast', [])[:5])}")
-            if result.get("sinopsis"):
-                head("Sinopsis:")
-                print(f"    {result['sinopsis'][:200]}...")
+        info(f"Scraping detail dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
+        print()
+
+        run_custom_scrape(url, output_name="DrakorKita_Single")
 
     elif choice == "2":
-        # ── Pilih jumlah film ──
-        print(f"""
-  {Fore.CYAN}Pilih jumlah film:{Style.RESET_ALL}
-
-    {Fore.YELLOW}1{Style.RESET_ALL}. 30 film     (1 halaman)
-    {Fore.YELLOW}2{Style.RESET_ALL}. 100 film    (4 halaman)
-    {Fore.YELLOW}3{Style.RESET_ALL}. 500 film    (17 halaman)
-    {Fore.YELLOW}4{Style.RESET_ALL}. 1000 film   (34 halaman)
-    {Fore.YELLOW}5{Style.RESET_ALL}. SEMUA       (~11.779 judul, ~400 halaman)
-    {Fore.YELLOW}6{Style.RESET_ALL}. Custom      (masukkan jumlah sendiri)
-""")
-        qty_choice = ask("Pilihan (1-6)", "1")
-        presets = {"1": 30, "2": 100, "3": 500, "4": 1000, "5": 0}
-
-        if qty_choice in presets:
-            num_films = presets[qty_choice]
-        elif qty_choice == "6":
-            custom = ask("Masukkan jumlah film yang ingin di-scrape")
-            try:
-                num_films = int(custom)
-                if num_films <= 0:
-                    raise ValueError
-            except ValueError:
-                err("Jumlah tidak valid!")
-                return
-        else:
-            err("Pilihan tidak valid!")
-            return
-
-        # ── Pilih apakah scrape video embed ──
-        with_eps = ask("Scrape video embed per episode? (y/n)", "y").lower() == "y"
-
-        # ── Hitung estimasi ──
-        display_num = "SEMUA (~11.779)" if num_films == 0 else str(num_films)
-        actual_for_est = num_films if num_films > 0 else 11779
-        pages = (actual_for_est + 29) // 30
-
-        est_without = _estimate_time(actual_for_est, False)
-        est_with = _estimate_time(actual_for_est, True)
-        est = est_with if with_eps else est_without
-
-        print(f"""
-  {Fore.CYAN}╔══════════════════════════════════════════════════════╗
-  ║  📊 ESTIMASI SCRAPING                                ║
-  ╠══════════════════════════════════════════════════════╣{Style.RESET_ALL}
-  {Fore.CYAN}║{Style.RESET_ALL}  Jumlah film     : {Fore.WHITE}{Style.BRIGHT}{display_num:>10}{Style.RESET_ALL}                       {Fore.CYAN}║{Style.RESET_ALL}
-  {Fore.CYAN}║{Style.RESET_ALL}  Halaman listing  : {Fore.WHITE}{pages:>10}{Style.RESET_ALL}                       {Fore.CYAN}║{Style.RESET_ALL}
-  {Fore.CYAN}║{Style.RESET_ALL}  Video per episode : {Fore.WHITE}{'Ya' if with_eps else 'Tidak':>10}{Style.RESET_ALL}                       {Fore.CYAN}║{Style.RESET_ALL}
-  {Fore.CYAN}║{Style.RESET_ALL}                                                      {Fore.CYAN}║{Style.RESET_ALL}""")
-
-        if with_eps:
-            print(f"  {Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW}Tahap 1:{Style.RESET_ALL} Crawl listing       ~{int(pages*1.5):>5} detik         {Fore.CYAN}║{Style.RESET_ALL}")
-            print(f"  {Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW}Tahap 2:{Style.RESET_ALL} Detail per judul     ~{int(actual_for_est*1.2):>5} detik         {Fore.CYAN}║{Style.RESET_ALL}")
-            print(f"  {Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW}Tahap 3:{Style.RESET_ALL} Video embed episode  ~{int(actual_for_est*25):>5} detik         {Fore.CYAN}║{Style.RESET_ALL}")
-        else:
-            print(f"  {Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW}Tahap 1:{Style.RESET_ALL} Crawl listing       ~{int(pages*1.5):>5} detik         {Fore.CYAN}║{Style.RESET_ALL}")
-            print(f"  {Fore.CYAN}║{Style.RESET_ALL}  {Fore.YELLOW}Tahap 2:{Style.RESET_ALL} Detail per judul     ~{int(actual_for_est*1.2):>5} detik         {Fore.CYAN}║{Style.RESET_ALL}")
-
-        print(f"""  {Fore.CYAN}║{Style.RESET_ALL}                                                      {Fore.CYAN}║{Style.RESET_ALL}
-  {Fore.CYAN}║{Style.RESET_ALL}  ⏱  {Fore.WHITE}{Style.BRIGHT}ESTIMASI TOTAL: {est:>20}{Style.RESET_ALL}          {Fore.CYAN}║{Style.RESET_ALL}
-  {Fore.CYAN}╚══════════════════════════════════════════════════════╝{Style.RESET_ALL}
-""")
-
-        confirm = ask(f"Mulai scraping {display_num} film? (y/n)", "y")
-        if confirm.lower() != "y":
-            info("Scraping dibatalkan.")
-            return
+        # Default DrakorKita URL
+        default_url = "https://drakorindo39.kita.baby/"
+        url = ask(f"URL beranda DrakorKita", default_url)
 
         print()
-        ok("🚀 Mulai scraping...")
+        info(f"🚀 Crawling semua film dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
+        info(f"⚡ Mode paralel: 10 halaman sekaligus (10x lebih cepat)")
         print()
 
-        run_full_scrape(
-            max_pages=pages if num_films > 0 else None,
-            max_details=num_films if num_films > 0 else None,
-            scrape_episodes=with_eps,
-        )
+        run_custom_scrape(url, output_name="DrakorKita")
 
     elif choice == "3":
-        genres = ["Action", "Adventure", "Comedy", "Crime", "Drama", "Family",
-                  "Fantasy", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller"]
-        print(f"\n  {Fore.CYAN}Genre tersedia:{Style.RESET_ALL}")
-        for i, g in enumerate(genres, 1):
-            print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. {g}")
-        g_choice = ask(f"Pilih genre (1-{len(genres)})", "1")
-        try:
-            genre = genres[int(g_choice) - 1]
-        except (ValueError, IndexError):
-            err("Pilihan tidak valid.")
+        url = ask("Masukkan URL situs DrakorKita (domain lain)")
+        if not url:
+            err("URL kosong!")
             return
 
-        num_films_str = ask("Berapa judul yang ingin di-scrape? (kosong = semua)", "30")
-        try:
-            num_films = int(num_films_str) if num_films_str else 0
-        except ValueError:
-            num_films = 30
-
-        with_eps = ask("Scrape video embed per episode? (y/n)", "y").lower() == "y"
-
-        actual = num_films if num_films > 0 else 500
-        est = _estimate_time(actual, with_eps)
-        pages = (actual + 29) // 30
-
-        print(f"\n  {Fore.CYAN}⏱  Estimasi: {Fore.WHITE}{Style.BRIGHT}{est}{Style.RESET_ALL}")
-        print(f"  {Fore.CYAN}Genre: {Fore.WHITE}{genre}{Style.RESET_ALL}")
-        print(f"  {Fore.CYAN}Jumlah: {Fore.WHITE}{num_films if num_films > 0 else 'Semua'}{Style.RESET_ALL}")
-
-        confirm = ask("\nMulai? (y/n)", "y")
-        if confirm.lower() != "y":
-            info("Dibatalkan.")
-            return
-
+        info(f"Scraping dari: {Fore.CYAN}{url}{Style.RESET_ALL}")
         print()
-        run_full_scrape(
-            max_pages=pages if num_films > 0 else None,
-            max_details=num_films if num_films > 0 else None,
-            filter_params={"genre": genre},
-            scrape_episodes=with_eps,
-        )
+
+        run_custom_scrape(url, output_name="DrakorKita_Custom")
+
+    else:
+        err("Pilihan tidak valid.")
 
 
 def _run_custom_film_scrape():
