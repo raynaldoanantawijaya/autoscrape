@@ -3,10 +3,30 @@
 ╔══════════════════════════════════════════════════════════════╗
 ║  Universal Film/Drama Scraper (Menu 4: Link Lainnya)         ║
 ║  Teknik gabungan dari DrakorKita + ZeldaEternity + Azarug    ║
-║  • Listing: requests+BS4 structured card selectors           ║
-║  • Detail: requests+BS4 metadata, episodes, downloads        ║
-║  • Video: AJAX via admin-ajax.php, Playwright fallback       ║
-║  • Verifikasi: Retry hingga 3x untuk setiap episode          ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  AUTO-DETECTION & TECHNIQUE SELECTION:                       ║
+║                                                              ║
+║  1. CRAWL LISTINGS (menemukan judul film):                   ║
+║     • DrakorKita (/detail/ links) → batch 10 halaman paralel ║
+║     • WP + Sitemap (sitemap_index.xml) → instan, paralel     ║
+║     • WP + Pages (/page/N/) → sequential + archive fallback  ║
+║     • Generic (?page=N) → sequential fallback                ║
+║                                                              ║
+║  2. SCRAPE DETAIL (metadata film):                           ║
+║     • requests + BS4: structured selectors (GMR/WP themes)   ║
+║     • DrakorKita fallback: .anf li, .gnr a, cast=, crew=     ║
+║                                                              ║
+║  3. VIDEO EXTRACTION:                                        ║
+║     • AJAX: admin-ajax.php (GMR/WP themes)                   ║
+║     • Static iframe: langsung dari HTML                      ║
+║     • DrakorKita Series: Playwright klik .btn-svr per eps    ║
+║     • DrakorKita Movie: Playwright grab iframe langsung      ║
+║     • Fallback umum: Playwright extract_iframe_from_page()   ║
+║                                                              ║
+║  4. PARALLEL PROCESSING:                                     ║
+║     • DrakorKita: 2 worker (Playwright = berat)              ║
+║     • Non-DrakorKita: 5 worker (HTTP only = ringan)          ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
