@@ -158,16 +158,31 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
         prev_h = table.find_previous(["h1", "h2", "h3", "h4", "h5", "h6"])
         prev_div = table.find_previous("div", class_=lambda c: c and "title" in c.lower())
         
-        # Ambil yang terdekat dalam struktur DOM (yang lebih bawah posisinya)
-        if prev_h and prev_div:
-            # Bandingkan siapa yang lebih dekat dengan tag table
-            if len(list(prev_h.next_elements)) > len(list(prev_div.next_elements)):
-                title = prev_div.get_text(strip=True)
-            else:
-                title = prev_h.get_text(strip=True)
-        elif prev_h:
+        # Hitung jarak DOM elemen untuk membedakan judul asli tabel v.s judul "bocor" dari tabel sebelumnya
+        dist_h = 999
+        if prev_h:
+            curr = prev_h
+            dist = 0
+            while curr and curr != table and dist < 100:
+                curr = curr.next_element
+                dist += 1
+            dist_h = dist if curr == table else 999
+            
+        dist_div = 999
+        if prev_div:
+            curr = prev_div
+            dist = 0
+            while curr and curr != table and dist < 100:
+                curr = curr.next_element
+                dist += 1
+            dist_div = dist if curr == table else 999
+            
+        # Ambang batas wajar judul tabel < 30 node DOM. Jika jarak > 30 bisa jadi itu milik tabel atasnya
+        if dist_h < 30 and dist_div < 30:
+            title = prev_div.get_text(strip=True) if dist_div < dist_h else prev_h.get_text(strip=True)
+        elif dist_h < 30:
             title = prev_h.get_text(strip=True)
-        elif prev_div:
+        elif dist_div < 30:
             title = prev_div.get_text(strip=True)
             
         rows = []
@@ -194,7 +209,11 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
                 # Filter kata generik seperti 'Satuan' agar judul lebih bersih
                 filtered = [t for t in first_texts if t and t.lower() != "satuan"]
                 if filtered:
-                    title = " & ".join(filtered)
+                    inner_title = " & ".join(filtered)
+                    if not title:
+                        title = inner_title
+                    elif inner_title.lower() not in title.lower():
+                        title = f"{title} - {inner_title}"
                     
                 last_ths = header_trs[-1].find_all(["th", "td"])
                 last_texts = [th.get_text(strip=True) for th in last_ths]
@@ -459,7 +478,12 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                             .map(x => x.innerText.trim());
                         const filtered = firstTexts.filter(t => t && t.toLowerCase() !== 'satuan');
                         if (filtered.length > 0) {
-                            title = filtered.join(' & ');
+                            const innerTitle = filtered.join(' & ');
+                            if (!title) {
+                                title = innerTitle;
+                            } else if (!title.toLowerCase().includes(innerTitle.toLowerCase())) {
+                                title = `${title} - ${innerTitle}`;
+                            }
                         }
                     }
                     
