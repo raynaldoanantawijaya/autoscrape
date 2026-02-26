@@ -353,186 +353,168 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
         return all_films
 
     # ═══════════════════════════════════════════════════════════════════
-    # NORMAL PATH: WP / Generic — sequential (perlu deteksi next page)
+    # NORMAL PATH: WP / Generic — sitemap first, lalu sequential pages
     # ═══════════════════════════════════════════════════════════════════
-    consecutive_empty = 0
 
-    for page_num in range(1, max_pages + 1):
-        if page_num > 1 and paging_mode == 'query':
-            from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-            parsed = urlparse(current_url)
-            params = parse_qs(parsed.query)
-            params['page'] = [str(page_num)]
-            current_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+    # --- STEP 1: Coba sitemap dulu (instan, < 5 detik) ---
+    sitemap_found = False
+    try:
+        sitemap_index_url = f"{base_url}/sitemap_index.xml"
+        sitemap_xml = _get_html(sitemap_index_url)
+        if sitemap_xml and '<sitemap>' in sitemap_xml:
+            sm_matches = re.findall(r'<loc>(.*?post-sitemap\d*\.xml)</loc>', sitemap_xml)
+            if sm_matches:
+                log.info(f"  ⚡ Sitemap ditemukan: {len(sm_matches)} post-sitemap files (mode cepat)")
 
-        log.info(f"  📄 Halaman {page_num}: {current_url}")
+                def _parse_sitemap(sm_url):
+                    urls = []
+                    try:
+                        xml = _get_html(sm_url)
+                        if xml:
+                            locs = re.findall(r'<loc>(.*?)</loc>', xml)
+                            for loc in locs:
+                                loc = loc.strip()
+                                if loc == base_url or loc == f"{base_url}/":
+                                    continue
+                                if any(skip in loc for skip in ['/category/', '/genre/', '/tag/',
+                                                                 '/author/', '/page/', '/wp-',
+                                                                 '/sitemap', '/feed/', '/comment']):
+                                    continue
+                                urls.append(loc)
+                    except Exception:
+                        pass
+                    return urls
 
-        films = _fetch_listing_page(current_url, base_url)
+                with ThreadPoolExecutor(max_workers=5) as ex:
+                    futures = {ex.submit(_parse_sitemap, sm): sm for sm in sm_matches}
+                    for f in as_completed(futures):
+                        for url in f.result():
+                            if url not in seen_urls:
+                                seen_urls.add(url)
+                                slug = url.rstrip('/').split('/')[-1]
+                                title = slug.replace('-', ' ').title()
+                                all_films.append({
+                                    "title": title,
+                                    "detail_url": url,
+                                    "poster": "",
+                                })
 
-        # Deduplicate
-        new_count = 0
-        for f in films:
-            if f["detail_url"] not in seen_urls:
-                seen_urls.add(f["detail_url"])
-                all_films.append(f)
-                new_count += 1
+                if len(all_films) > 50:
+                    sitemap_found = True
+                    log.info(f"     → {len(all_films)} judul dari sitemap")
+    except Exception:
+        pass
 
-        log.info(f"     → {new_count} judul baru (total: {len(all_films)})")
+    # --- STEP 2: Jika sitemap tidak cukup, crawl halaman sequential ---
+    if not sitemap_found:
+        # Ambil film dari halaman pertama (sudah di-probe di atas)
+        if html_probe:
+            films_p1 = _fetch_listing_page(start_url, base_url)
+            for f in films_p1:
+                if f["detail_url"] not in seen_urls:
+                    seen_urls.add(f["detail_url"])
+                    all_films.append(f)
 
-        if not films or new_count == 0:
-            consecutive_empty += 1
-            if consecutive_empty >= 2:
-                log.info(f"  ✓ 2 halaman kosong berturut-turut, semua film sudah terkumpul.")
-                break
-        else:
-            consecutive_empty = 0
+        consecutive_empty = 0
 
-        # Untuk query mode, paging sudah dihandle di atas
-        if paging_mode == 'query':
-            time.sleep(0.5)
-            continue
-
-        # Untuk WP mode: cari halaman berikutnya
-        html = _get_html(current_url)
-        if html:
-            soup = BeautifulSoup(html, "html.parser")
-            next_url = _detect_next_page(soup, current_url, base_url)
-            if next_url and next_url != current_url:
-                current_url = next_url
-                paging_mode = 'wp'
-                time.sleep(0.5)
+        for page_num in range(2, max_pages + 1):
+            if paging_mode == 'query':
+                from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+                parsed = urlparse(current_url)
+                params = parse_qs(parsed.query)
+                params['page'] = [str(page_num)]
+                current_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+            elif paging_mode == 'wp':
+                m = re.search(r'/page/(\d+)/', current_url)
+                if m:
+                    current_url = re.sub(r'/page/\d+/', f'/page/{page_num}/', current_url)
+                else:
+                    current_url = f"{start_url.rstrip('/')}/page/{page_num}/"
             else:
-                # Coba pola /page/N/ manual
-                if page_num == 1 and '?' not in start_url:
-                    next_try = f"{start_url.rstrip('/')}/page/2/"
-                    test_html = _get_html(next_try)
-                    if test_html:
+                # Auto-detect paging mode
+                next_try = f"{start_url.rstrip('/')}/page/{page_num}/"
+                test_html = _get_html(next_try)
+                if test_html:
+                    test_films = _fetch_listing_page(next_try, base_url)
+                    if test_films:
                         current_url = next_try
                         paging_mode = 'wp'
-                        time.sleep(0.5)
                     else:
-                        # Coba ?page=2
-                        next_try = f"{start_url.rstrip('/')}?page=2" if '?' not in start_url else start_url + "&page=2"
+                        # Coba ?page=N
+                        next_try = f"{start_url.rstrip('/')}?page={page_num}" if '?' not in start_url else start_url + f"&page={page_num}"
                         test_html = _get_html(next_try)
                         if test_html:
                             test_films = _fetch_listing_page(next_try, base_url)
                             if test_films:
+                                current_url = next_try
                                 paging_mode = 'query'
-                                time.sleep(0.5)
                             else:
                                 break
                         else:
                             break
                 else:
-                    # Increment page number di URL
-                    m = re.search(r'/page/(\d+)/', current_url)
-                    if m:
-                        next_num = int(m.group(1)) + 1
-                        current_url = re.sub(r'/page/\d+/', f'/page/{next_num}/', current_url)
-                        paging_mode = 'wp'
-                        time.sleep(0.5)
-                    else:
-                        break
-        else:
-            break
-    # ═══════════════════════════════════════════════════════════════════
-    # FALLBACK: Jika hasil sedikit (< 200), coba sitemap XML + archives
-    # WordPress/GMR themes sering batasi homepage, tapi katalog lengkap
-    # ada di sitemap atau archive pages (/best-rating/, /genre/xxx/)
-    # ═══════════════════════════════════════════════════════════════════
-    if len(all_films) < 200 and paging_mode != 'drakorkita':
-        log.info(f"  ℹ Hanya {len(all_films)} film dari homepage. Mencari katalog lengkap...")
+                    break
 
-        # --- Metode 1: XML Sitemap ---
-        sitemap_urls = []
-        try:
-            sitemap_index_url = f"{base_url}/sitemap_index.xml"
-            sitemap_xml = _get_html(sitemap_index_url)
-            if sitemap_xml and '<sitemap>' in sitemap_xml:
-                # Parse sitemap index → cari post-sitemap*.xml
-                sm_matches = re.findall(r'<loc>(.*?post-sitemap\d*\.xml)</loc>', sitemap_xml)
-                if sm_matches:
-                    log.info(f"  📄 Sitemap ditemukan: {len(sm_matches)} post-sitemap files")
+            log.info(f"  📄 Halaman {page_num}: {current_url}")
 
-                    def _parse_sitemap(sm_url):
-                        """Parse satu sitemap XML, return list of post URLs."""
-                        urls = []
-                        try:
-                            xml = _get_html(sm_url)
-                            if xml:
-                                locs = re.findall(r'<loc>(.*?)</loc>', xml)
-                                for loc in locs:
-                                    loc = loc.strip()
-                                    # Skip halaman non-film (homepage, category, page, tag, author)
-                                    if loc == base_url or loc == f"{base_url}/":
-                                        continue
-                                    if any(skip in loc for skip in ['/category/', '/genre/', '/tag/',
-                                                                     '/author/', '/page/', '/wp-',
-                                                                     '/sitemap', '/feed/', '/comment']):
-                                        continue
-                                    urls.append(loc)
-                        except Exception:
-                            pass
-                        return urls
+            films = _fetch_listing_page(current_url, base_url)
 
-                    # Paralel fetch semua sitemap
-                    with ThreadPoolExecutor(max_workers=5) as ex:
-                        futures = {ex.submit(_parse_sitemap, sm): sm for sm in sm_matches}
-                        for f in as_completed(futures):
-                            sitemap_urls.extend(f.result())
+            new_count = 0
+            for f in films:
+                if f["detail_url"] not in seen_urls:
+                    seen_urls.add(f["detail_url"])
+                    all_films.append(f)
+                    new_count += 1
 
-                    # Dedup dan tambahkan sebagai film entries
-                    new_from_sitemap = 0
-                    for url in sitemap_urls:
-                        if url not in seen_urls:
-                            seen_urls.add(url)
-                            # Extract judul dari URL slug
-                            slug = url.rstrip('/').split('/')[-1]
-                            title = slug.replace('-', ' ').title()
-                            all_films.append({
-                                "title": title,
-                                "detail_url": url,
-                                "poster": "",
-                            })
-                            new_from_sitemap += 1
+            log.info(f"     → {new_count} judul baru (total: {len(all_films)})")
 
-                    if new_from_sitemap > 0:
-                        log.info(f"     → {new_from_sitemap} judul baru dari sitemap (total: {len(all_films)})")
-        except Exception:
-            pass
+            if not films or new_count == 0:
+                consecutive_empty += 1
+                if consecutive_empty >= 2:
+                    log.info(f"  ✓ 2 halaman kosong berturut-turut, selesai.")
+                    break
+            else:
+                consecutive_empty = 0
 
-        # --- Metode 2: /best-rating/ archive (jika sitemap gagal/sedikit) ---
+            time.sleep(0.5)
+
+        # Archive fallback jika masih sedikit
         if len(all_films) < 200:
+            log.info(f"  ℹ Hanya {len(all_films)} film. Mencari archive...")
             for archive_slug in ['best-rating', 'popular', 'movies', 'film']:
                 archive_url = f"{base_url}/{archive_slug}/"
                 test_html = _get_html(archive_url)
                 if test_html:
                     test_films = _fetch_listing_page(archive_url, base_url)
-                    if len(test_films) > 0:
+                    if test_films:
                         log.info(f"  📄 Archive /{archive_slug}/ ditemukan. Crawling...")
+                        for f in test_films:
+                            if f["detail_url"] not in seen_urls:
+                                seen_urls.add(f["detail_url"])
+                                all_films.append(f)
                         arch_page = 1
-                        arch_consecutive_empty = 0
+                        arch_empty = 0
                         while arch_page <= 500:
                             arch_page += 1
                             arch_url = f"{base_url}/{archive_slug}/page/{arch_page}/"
                             arch_films = _fetch_listing_page(arch_url, base_url)
-                            new_count = 0
+                            nc = 0
                             for f in arch_films:
                                 if f["detail_url"] not in seen_urls:
                                     seen_urls.add(f["detail_url"])
                                     all_films.append(f)
-                                    new_count += 1
-                            if new_count == 0:
-                                arch_consecutive_empty += 1
-                                if arch_consecutive_empty >= 2:
+                                    nc += 1
+                            if nc == 0:
+                                arch_empty += 1
+                                if arch_empty >= 2:
                                     break
                             else:
-                                arch_consecutive_empty = 0
+                                arch_empty = 0
                             if arch_page % 10 == 0:
                                 log.info(f"     → Halaman {arch_page}: total {len(all_films)} judul")
                             time.sleep(0.3)
                         log.info(f"     → Archive /{archive_slug}/: total {len(all_films)} judul")
-                        break  # Gunakan archive pertama yang berhasil
+                        break
 
     return all_films
 
