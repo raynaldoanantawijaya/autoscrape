@@ -618,7 +618,7 @@ def technique_ssr_parser(url: str) -> dict | None:
 # SCRAPER KHUSUS: EMAS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _scrape_single_url(name: str, url: str):
+def _scrape_single_url(name: str, url: str, subfolder: str = ""):
     """Scrape satu URL menggunakan AUTO-DETECT penuh (SSR → Direct → Capture → DOM)."""
     info(f"Scraping [{name}]: {Fore.CYAN}{url}{Style.RESET_ALL}")
     timestamp = int(time.time())
@@ -685,7 +685,13 @@ def _scrape_single_url(name: str, url: str):
 
     # ── Simpan ──
     domain_slug = _domain(url).replace(".", "_")
-    out_path = os.path.join(OUTPUT_DIR, f"{domain_slug}_{timestamp}.json")
+    if subfolder:
+        save_dir = os.path.join(OUTPUT_DIR, subfolder)
+        os.makedirs(save_dir, exist_ok=True)
+        out_path = os.path.join(save_dir, f"{domain_slug}_{timestamp}.json")
+    else:
+        out_path = os.path.join(OUTPUT_DIR, f"{domain_slug}_{timestamp}.json")
+    
     out = {
         "metadata": {"url": url, "source": name,
                       "technique_used": used_technique,
@@ -781,7 +787,7 @@ def run_scrape_emas():
         return
 
     print()
-    _scrape_single_url(name, url)
+    _scrape_single_url(name, url, subfolder="emas")
     input(f"  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
 
