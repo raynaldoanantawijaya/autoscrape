@@ -282,6 +282,12 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
                 else:
                     title = sub_text
             elif valid_count >= 2:
+                # Abaikan baris inner-header yang secara tidak sengaja mengulangi nama kolom (misal: "Berat | Harga Dasar | Harga")
+                if headers_raw:
+                    clean_headers = [h.split(' (')[0] for h in headers_raw] # Hilangkan tag (1), (2) index duplikat
+                    if cells[:len(clean_headers)] == clean_headers:
+                        continue
+                        
                 # Handle cell count mismatch
                 if headers_raw and len(cells) != len(headers_raw):
                     if len(cells) < len(headers_raw):
@@ -589,6 +595,19 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                             title = subText;
                         }
                     } else if (validCount >= 2) {
+                        // Skip if row perfectly repeats the headers
+                        if (hdrs.length > 0) {
+                            const cleanHdrs = hdrs.map(h => h.split(' (')[0]);
+                            let isDuplicate = true;
+                            for (let i = 0; i < cleanHdrs.length; i++) {
+                                if (cells[i] !== cleanHdrs[i]) {
+                                    isDuplicate = false;
+                                    break;
+                                }
+                            }
+                            if (isDuplicate) return; // continue forEach loop
+                        }
+                        
                         if (hdrs.length && cells.length !== hdrs.length) {
                             if (cells.length < hdrs.length) {
                                 while(cells.length < hdrs.length) cells.push("");
