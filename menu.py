@@ -153,24 +153,51 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
     # Ekstrak tabel HTML
     tables = []
     for table in soup.find_all("table"):
-        # Cari judul tabel dari elemen heading sebelumnya (h1-h6) atau elemen dengan class title/heading
+        # Cari judul tabel dari elemen heading sebelumnya (h1-h6)
         title = ""
         prev = table.find_previous(["h1", "h2", "h3", "h4", "h5", "h6"])
         if prev:
             title = prev.get_text(strip=True)
             
         rows = []
-        headers_raw = [th.get_text(strip=True) for th in table.find_all("th")]
-        for tr in table.find_all("tr")[1:]:
+        headers_raw = []
+        
+        # Pisahkan header rows dan data rows secara pintar
+        thead = table.find("thead")
+        if thead:
+            header_trs = thead.find_all("tr")
+            tbody = table.find("tbody")
+            data_trs = tbody.find_all("tr") if tbody else table.find_all("tr")[len(header_trs):]
+        else:
+            all_trs = table.find_all("tr")
+            header_trs = [tr for tr in all_trs if tr.find("th") and not tr.find("td")]
+            data_trs = [tr for tr in all_trs if tr not in header_trs]
+            if not header_trs and all_trs:
+                header_trs = [all_trs[0]]
+                data_trs = all_trs[1:]
+                
+        if header_trs:
+            # Jika ada multiple header rows, baris pertama seringkali adalah super-header (misal "Antam", "Pegadaian")
+            if not title and len(header_trs) > 1:
+                first_texts = [th.get_text(strip=True) for th in header_trs[0].find_all(["th", "td"]) if th.get_text(strip=True)]
+                # Filter kata generik seperti 'Satuan' agar judul lebih bersih
+                filtered = [t for t in first_texts if t.lower() != "satuan"]
+                if filtered:
+                    title = " & ".join(filtered)
+            # Kolom aktual biasanya ada di row header terakhir
+            headers_raw = [th.get_text(strip=True) for th in header_trs[-1].find_all(["th", "td"])]
+            
+        for tr in data_trs:
             cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
             if cells and len(cells) >= 2:
-                # Handle kasus di mana jumlah sel < jumlah header we pad with empty strings
+                # Handle cell count mismatch
                 if headers_raw and len(cells) != len(headers_raw):
                     if len(cells) < len(headers_raw):
                         cells.extend([""] * (len(headers_raw) - len(cells)))
                     else:
                         cells = cells[:len(headers_raw)]
                 rows.append(dict(zip(headers_raw, cells)) if headers_raw else cells)
+                
         if rows:
             tables.append({"title": title, "headers": headers_raw, "rows": rows})
 
@@ -342,7 +369,7 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
         tables = page.evaluate("""
         () => {
             const results = [];
-            // Helper function to find preceding heading
+            
             const getPrecedingHeading = (element) => {
                 let prev = element.previousElementSibling;
                 while (prev) {
@@ -355,15 +382,46 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
             };
             
             document.querySelectorAll('table').forEach(tbl => {
-                const title = getPrecedingHeading(tbl);
-                const hdrs = Array.from(tbl.querySelectorAll('th')).map(h => h.innerText.trim());
+                let title = getPrecedingHeading(tbl);
+                
+                const thead = tbl.querySelector('thead');
+                let headerRows = [];
+                let dataRows = [];
+                
+                if (thead) {
+                    headerRows = Array.from(thead.querySelectorAll('tr'));
+                    const tbody = tbl.querySelector('tbody');
+                    if (tbody) {
+                        dataRows = Array.from(tbody.querySelectorAll('tr'));
+                    } else {
+                        dataRows = Array.from(tbl.querySelectorAll('tr')).slice(headerRows.length);
+                    }
+                } else {
+                    const allTrs = Array.from(tbl.querySelectorAll('tr'));
+                    headerRows = allTrs.filter(tr => tr.querySelector('th') && !tr.querySelector('td'));
+                    dataRows = allTrs.filter(tr => !headerRows.includes(tr));
+                    if (headerRows.length === 0 && allTrs.length > 0) {
+                        headerRows = [allTrs[0]];
+                        dataRows = allTrs.slice(1);
+                    }
+                }
+                
+                let hdrs = [];
+                if (headerRows.length > 0) {
+                    if (!title && headerRows.length > 1) {
+                        const firstTexts = Array.from(headerRows[0].querySelectorAll('th, td'))
+                            .map(x => x.innerText.trim())
+                            .filter(t => t && t.toLowerCase() !== 'satuan');
+                        if (firstTexts.length > 0) {
+                            title = firstTexts.join(' & ');
+                        }
+                    }
+                    hdrs = Array.from(headerRows[headerRows.length-1].querySelectorAll('th, td')).map(x => x.innerText.trim());
+                }
+                
                 const rows = [];
-                tbl.querySelectorAll('tr').forEach((tr, i) => {
-                    if (i === 0 && hdrs.length) return;
+                dataRows.forEach(tr => {
                     const cells = Array.from(tr.querySelectorAll('td, th')).map(c => c.innerText.trim());
-                    // Skip header row if it's already captured in hdrs
-                    if (i === 0 && Array.from(tr.querySelectorAll('th')).length > 0) return;
-                    
                     if (cells.length >= 2) {
                         if (hdrs.length && cells.length !== hdrs.length) {
                             if (cells.length < hdrs.length) {
@@ -375,6 +433,7 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                         rows.push(hdrs.length ? Object.fromEntries(hdrs.map((h,j) => [h, cells[j]||''])) : cells);
                     }
                 });
+                
                 if (rows.length) results.push({title, headers: hdrs, rows});
             });
             return results;
