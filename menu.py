@@ -153,11 +153,22 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
     # Ekstrak tabel HTML
     tables = []
     for table in soup.find_all("table"):
-        # Cari judul tabel dari elemen heading sebelumnya (h1-h6)
+        # Cari judul tabel dari elemen heading sebelumnya (h1-h6) atau div dengan class title
         title = ""
-        prev = table.find_previous(["h1", "h2", "h3", "h4", "h5", "h6"])
-        if prev:
-            title = prev.get_text(strip=True)
+        prev_h = table.find_previous(["h1", "h2", "h3", "h4", "h5", "h6"])
+        prev_div = table.find_previous("div", class_=lambda c: c and "title" in c.lower())
+        
+        # Ambil yang terdekat dalam struktur DOM (yang lebih bawah posisinya)
+        if prev_h and prev_div:
+            # Bandingkan siapa yang lebih dekat dengan tag table
+            if len(list(prev_h.next_elements)) > len(list(prev_div.next_elements)):
+                title = prev_div.get_text(strip=True)
+            else:
+                title = prev_h.get_text(strip=True)
+        elif prev_h:
+            title = prev_h.get_text(strip=True)
+        elif prev_div:
+            title = prev_div.get_text(strip=True)
             
         rows = []
         headers_raw = []
@@ -178,14 +189,35 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
                 
         if header_trs:
             # Jika ada multiple header rows, baris pertama seringkali adalah super-header (misal "Antam", "Pegadaian")
-            if not title and len(header_trs) > 1:
-                first_texts = [th.get_text(strip=True) for th in header_trs[0].find_all(["th", "td"]) if th.get_text(strip=True)]
+            if len(header_trs) > 1:
+                first_ths = header_trs[0].find_all(["th", "td"])
+                first_texts = [th.get_text(strip=True) for th in first_ths if th.get_text(strip=True)]
                 # Filter kata generik seperti 'Satuan' agar judul lebih bersih
                 filtered = [t for t in first_texts if t.lower() != "satuan"]
                 if filtered:
+                    # Ganti title yang mungkin bocor dari tabel sebelumnya dengan title tabel spesifik ini
                     title = " & ".join(filtered)
-            # Kolom aktual biasanya ada di row header terakhir
-            headers_raw = [th.get_text(strip=True) for th in header_trs[-1].find_all(["th", "td"])]
+                    
+                # Kolom aktual biasanya gabungan dari row pertama (yang di-rowspan) dan row terakhir
+                last_ths = header_trs[-1].find_all(["th", "td"])
+                headers_raw = []
+                
+                # Ambil header dari baris terakhir dulu
+                last_texts = [th.get_text(strip=True) for th in last_ths]
+                
+                # Seringkali kolom pertama (seperti "Satuan", "Gram", "Hari") di-rowspan sejajar dengan sub-header.
+                # Karena BeautifulSoup mengekstrak per baris HTML, tag th yang dirowspan hanya muncul di `first_texts`.
+                # Kita secara tegas memasukkannya jika row terakhir tidak memilikinya.
+                if first_texts and first_texts[0].lower() in ["satuan", "gram", "hari", "tanggal"] and first_texts[0] not in last_texts:
+                    headers_raw = [first_texts[0]] + last_texts
+                elif len(last_texts) < total_cols and first_texts:
+                    missing_count = total_cols - len(last_texts)
+                    headers_raw = first_texts[:missing_count] + last_texts
+                else:
+                    headers_raw = last_texts
+            else:
+                # Kolom aktual biasanya ada di row header terakhir
+                headers_raw = [th.get_text(strip=True) for th in header_trs[-1].find_all(["th", "td"])]
             
         for tr in data_trs:
             cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
@@ -372,11 +404,13 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
             
             const getPrecedingHeading = (element) => {
                 let prev = element.previousElementSibling;
-                while (prev) {
-                    if (['H1','H2','H3','H4','H5','H6'].includes(prev.tagName)) {
+                let limit = 0;
+                while (prev && limit < 10) {
+                    if (['H1','H2','H3','H4','H5','H6'].includes(prev.tagName) || (prev.tagName === 'DIV' && prev.className.toLowerCase().includes('title'))) {
                         return prev.innerText.trim();
                     }
                     prev = prev.previousElementSibling;
+                    limit++;
                 }
                 return "";
             };
@@ -408,15 +442,28 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                 
                 let hdrs = [];
                 if (headerRows.length > 0) {
-                    if (!title && headerRows.length > 1) {
-                        const firstTexts = Array.from(headerRows[0].querySelectorAll('th, td'))
+                    let firstTexts = [];
+                    if (headerRows.length > 1) {
+                        firstTexts = Array.from(headerRows[0].querySelectorAll('th, td'))
                             .map(x => x.innerText.trim())
-                            .filter(t => t && t.toLowerCase() !== 'satuan');
-                        if (firstTexts.length > 0) {
-                            title = firstTexts.join(' & ');
+                            .filter(t => t);
+                        const filtered = firstTexts.filter(t => t.toLowerCase() !== 'satuan');
+                        if (filtered.length > 0) {
+                            title = filtered.join(' & ');
                         }
                     }
-                    hdrs = Array.from(headerRows[headerRows.length-1].querySelectorAll('th, td')).map(x => x.innerText.trim());
+                    
+                    const lastTexts = Array.from(headerRows[headerRows.length-1].querySelectorAll('th, td')).map(x => x.innerText.trim());
+                    
+                    // Seringkali kolom pertama (seperti "Satuan", "Gram", "Hari") di-rowspan sejajar dengan sub-header.
+                    if (firstTexts.length > 0 && ['satuan', 'gram', 'hari', 'tanggal'].includes(firstTexts[0].toLowerCase()) && !lastTexts.includes(firstTexts[0])) {
+                        hdrs = [firstTexts[0], ...lastTexts];
+                    } else if (dataRows.length > 0 && lastTexts.length < Array.from(dataRows[0].querySelectorAll('th, td')).length && firstTexts.length > 0) {
+                        const missingCount = Array.from(dataRows[0].querySelectorAll('th, td')).length - lastTexts.length;
+                        hdrs = [...firstTexts.slice(0, missingCount), ...lastTexts];
+                    } else {
+                        hdrs = lastTexts;
+                    }
                 }
                 
                 const rows = [];
