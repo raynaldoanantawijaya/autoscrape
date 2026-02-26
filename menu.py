@@ -744,6 +744,52 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
                     result["__NEXT_DATA__"] = next_data
                 if nuxt_data:
                     result["__NUXT__"] = nuxt_data
+                    
+                    # ── KHUSUS GALERI24: Ekstrak Harga Emas dari state NUXT (Vue 3 Array Dereferencing) ──
+                    if isinstance(nuxt_data, list) and "galeri24.co.id" in url.lower():
+                        def resolve(idx):
+                            if not isinstance(idx, int) or idx < 0 or idx >= len(nuxt_data):
+                                return idx
+                            item = nuxt_data[idx]
+                            if isinstance(item, dict):
+                                return {k: resolve(v) for k, v in item.items()}
+                            elif isinstance(item, list):
+                                return [resolve(v) for v in item]
+                            return item
+                        
+                        t_map = {}
+                        for i, it in enumerate(nuxt_data):
+                            if isinstance(it, dict) and 'vendorName' in it and 'denomination' in it and 'sellingPrice' in it:
+                                obj = resolve(i)
+                                vname = obj.get('vendorName', 'Galeri24')
+                                denom = obj.get('denomination', 0)
+                                sell = obj.get('sellingPrice', 0)
+                                buy = obj.get('buybackPrice', 0) or 0
+                                
+                                try: sell = float(sell)
+                                except: sell = 0
+                                try: buy = float(buy)
+                                except: buy = 0
+                                
+                                if vname not in t_map:
+                                    t_map[vname] = []
+                                t_map[vname].append({
+                                    'Berat (Gram)': f'{denom} gr',
+                                    'Harga Jual': f'{sell:,.0f}'.replace(',', '.'),
+                                    'Harga Beli (Buyback)': f'{buy:,.0f}'.replace(',', '.')
+                                })
+                        
+                        if t_map:
+                            if "tables" not in result:
+                                result["tables"] = []
+                            for vname, rows in t_map.items():
+                                result["tables"].append({
+                                    "title": f"Harga Emas - {vname}",
+                                    "headers": ["Berat (Gram)", "Harga Jual", "Harga Beli (Buyback)"],
+                                    "rows": rows
+                                })
+                            ok(f"  {len(t_map)} tabel Harga Emas berhasil di-decode dari status NUXT (Vue 3)!")
+                            
                 used_technique = "Network Capture"
             
             # ── Langkah 4: DOM Extraction (browser, konten visible di halaman) ──
