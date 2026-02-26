@@ -153,14 +153,26 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
     # Ekstrak tabel HTML
     tables = []
     for table in soup.find_all("table"):
+        # Cari judul tabel dari elemen heading sebelumnya (h1-h6) atau elemen dengan class title/heading
+        title = ""
+        prev = table.find_previous(["h1", "h2", "h3", "h4", "h5", "h6"])
+        if prev:
+            title = prev.get_text(strip=True)
+            
         rows = []
         headers_raw = [th.get_text(strip=True) for th in table.find_all("th")]
         for tr in table.find_all("tr")[1:]:
-            cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+            cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
             if cells and len(cells) >= 2:
+                # Handle kasus di mana jumlah sel < jumlah header we pad with empty strings
+                if headers_raw and len(cells) != len(headers_raw):
+                    if len(cells) < len(headers_raw):
+                        cells.extend([""] * (len(headers_raw) - len(cells)))
+                    else:
+                        cells = cells[:len(headers_raw)]
                 rows.append(dict(zip(headers_raw, cells)) if headers_raw else cells)
         if rows:
-            tables.append({"headers": headers_raw, "rows": rows})
+            tables.append({"title": title, "headers": headers_raw, "rows": rows})
 
     # Ekstrak semua link artikel
     links = []
@@ -330,17 +342,40 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
         tables = page.evaluate("""
         () => {
             const results = [];
+            // Helper function to find preceding heading
+            const getPrecedingHeading = (element) => {
+                let prev = element.previousElementSibling;
+                while (prev) {
+                    if (['H1','H2','H3','H4','H5','H6'].includes(prev.tagName)) {
+                        return prev.innerText.trim();
+                    }
+                    prev = prev.previousElementSibling;
+                }
+                return "";
+            };
+            
             document.querySelectorAll('table').forEach(tbl => {
+                const title = getPrecedingHeading(tbl);
                 const hdrs = Array.from(tbl.querySelectorAll('th')).map(h => h.innerText.trim());
                 const rows = [];
                 tbl.querySelectorAll('tr').forEach((tr, i) => {
                     if (i === 0 && hdrs.length) return;
-                    const cells = Array.from(tr.querySelectorAll('td')).map(c => c.innerText.trim());
+                    const cells = Array.from(tr.querySelectorAll('td, th')).map(c => c.innerText.trim());
+                    // Skip header row if it's already captured in hdrs
+                    if (i === 0 && Array.from(tr.querySelectorAll('th')).length > 0) return;
+                    
                     if (cells.length >= 2) {
+                        if (hdrs.length && cells.length !== hdrs.length) {
+                            if (cells.length < hdrs.length) {
+                                while(cells.length < hdrs.length) cells.push("");
+                            } else {
+                                cells.length = hdrs.length;
+                            }
+                        }
                         rows.push(hdrs.length ? Object.fromEntries(hdrs.map((h,j) => [h, cells[j]||''])) : cells);
                     }
                 });
-                if (rows.length) results.push({headers: hdrs, rows});
+                if (rows.length) results.push({title, headers: hdrs, rows});
             });
             return results;
         }
@@ -508,6 +543,10 @@ def _scrape_single_url(name: str, url: str):
     tbls = result.get("tables", [])
     if tbls:
         for tbl in tbls[:2]:
+            title = tbl.get("title", "")
+            title_str = f" ({title})" if title else ""
+            if title_str:
+                print(f"  {Fore.YELLOW}Tabel{title_str}{Style.RESET_ALL}:")
             rows = tbl.get("rows", [])[:5]
             for row in rows:
                 if isinstance(row, dict):
@@ -1694,8 +1733,11 @@ def run_view_results():
             for ti, tbl in enumerate(tables, 1):
                 headers = tbl.get("headers", [])
                 rows = tbl.get("rows", [])
+                title = tbl.get("title", "")
+                
+                title_str = f" ({title})" if title else ""
                 if headers:
-                    print(f"\n    {Fore.YELLOW}Tabel {ti}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:8])}")
+                    print(f"\n    {Fore.YELLOW}Tabel {ti}{title_str}{Style.RESET_ALL} — Kolom: {' | '.join(str(h) for h in headers[:8])}")
                 for row in rows:
                     if isinstance(row, dict):
                         vals = " | ".join(f"{v}" for v in list(row.values())[:8])
