@@ -206,7 +206,20 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
             if not header_trs and all_trs:
                 header_trs = [all_trs[0]]
                 data_trs = all_trs[1:]
-                
+        # Repair header_trs: pindahkan baris 1-sel (sub-title) ke data_trs agar tidak merusak judul kolom
+        real_header_trs = []
+        sub_title_trs = []
+        for tr in header_trs:
+            valid_c = len([c.get_text(strip=True) for c in tr.find_all(["th", "td"]) if c.get_text(strip=True)])
+            if valid_c == 1:
+                sub_title_trs.append(tr)
+            else:
+                real_header_trs.append(tr)
+        
+        header_trs = real_header_trs
+        data_trs = sub_title_trs + data_trs
+        
+        headers_raw = []
         if header_trs:
             if len(header_trs) > 1:
                 first_ths = header_trs[0].find_all(["th", "td"])
@@ -493,6 +506,20 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                         dataRows = allTrs.slice(1);
                     }
                 }
+                
+                // Repair headerRows: pindahkan sub-title 1-sel ke dataRows
+                let realHeaderRows = [];
+                let subTitleRows = [];
+                headerRows.forEach(tr => {
+                    const validCount = Array.from(tr.querySelectorAll('th, td')).map(c => c.innerText.trim()).filter(c => c).length;
+                    if (validCount === 1) {
+                        subTitleRows.push(tr);
+                    } else {
+                        realHeaderRows.push(tr);
+                    }
+                });
+                headerRows = realHeaderRows;
+                dataRows = subTitleRows.concat(dataRows);
                 
                 let hdrs = [];
                 if (headerRows.length > 0) {
