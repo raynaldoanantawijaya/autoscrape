@@ -394,7 +394,6 @@ def technique_network_capture(url: str) -> dict | None:
 
         nuxt_data = page.evaluate("""
         () => {
-            if (window.__NUXT__) return window.__NUXT__;
             const el = document.getElementById('__NUXT_DATA__');
             if (el) { try { return JSON.parse(el.textContent); } catch(e) {} }
             return null;
