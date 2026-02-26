@@ -196,7 +196,12 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
             data_trs = tbody.find_all("tr") if tbody else table.find_all("tr")[len(header_trs):]
         else:
             all_trs = table.find_all("tr")
-            header_trs = [tr for tr in all_trs if tr.find("th") and not tr.find("td")]
+            header_trs = []
+            for tr in all_trs:
+                if tr.find("th") and not tr.find("td"):
+                    header_trs.append(tr)
+                else:
+                    break
             data_trs = [tr for tr in all_trs if tr not in header_trs]
             if not header_trs and all_trs:
                 header_trs = [all_trs[0]]
@@ -474,7 +479,14 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                     }
                 } else {
                     const allTrs = Array.from(tbl.querySelectorAll('tr'));
-                    headerRows = allTrs.filter(tr => tr.querySelector('th') && !tr.querySelector('td'));
+                    headerRows = [];
+                    for (const tr of allTrs) {
+                        if (tr.querySelector('th') && !tr.querySelector('td')) {
+                            headerRows.push(tr);
+                        } else {
+                            break;
+                        }
+                    }
                     dataRows = allTrs.filter(tr => !headerRows.includes(tr));
                     if (headerRows.length === 0 && allTrs.length > 0) {
                         headerRows = [allTrs[0]];
