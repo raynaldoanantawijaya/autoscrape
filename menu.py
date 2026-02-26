@@ -807,8 +807,14 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
                 
                 if result and result.get("technique") == "network_capture":
                     # Gabungkan DOM dengan hasil Network Capture
-                    result["tables"] = dom_data.get("tables", [])
-                    result["articles"] = dom_data.get("articles", [])
+                    if "tables" not in result:
+                        result["tables"] = []
+                    result["tables"].extend(dom_data.get("tables", []))
+                    
+                    if "articles" not in result:
+                        result["articles"] = []
+                    result["articles"].extend(dom_data.get("articles", []))
+                    
                     used_technique = "Network Capture + DOM Extraction"
                 else:
                     result = {"technique": "dom_extraction", **dom_data}
