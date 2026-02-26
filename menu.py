@@ -188,36 +188,47 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
                 data_trs = all_trs[1:]
                 
         if header_trs:
-            # Jika ada multiple header rows, baris pertama seringkali adalah super-header (misal "Antam", "Pegadaian")
             if len(header_trs) > 1:
                 first_ths = header_trs[0].find_all(["th", "td"])
-                first_texts = [th.get_text(strip=True) for th in first_ths if th.get_text(strip=True)]
+                first_texts = [th.get_text(strip=True) for th in first_ths]
                 # Filter kata generik seperti 'Satuan' agar judul lebih bersih
-                filtered = [t for t in first_texts if t.lower() != "satuan"]
+                filtered = [t for t in first_texts if t and t.lower() != "satuan"]
                 if filtered:
-                    # Ganti title yang mungkin bocor dari tabel sebelumnya dengan title tabel spesifik ini
                     title = " & ".join(filtered)
                     
-                # Kolom aktual biasanya gabungan dari row pertama (yang di-rowspan) dan row terakhir
                 last_ths = header_trs[-1].find_all(["th", "td"])
-                headers_raw = []
-                
-                # Ambil header dari baris terakhir dulu
                 last_texts = [th.get_text(strip=True) for th in last_ths]
+                total_cols = len(data_trs[0].find_all(["td", "th"])) if data_trs else len(last_ths)
                 
-                # Seringkali kolom pertama (seperti "Satuan", "Gram", "Hari") di-rowspan sejajar dengan sub-header.
-                # Karena BeautifulSoup mengekstrak per baris HTML, tag th yang dirowspan hanya muncul di `first_texts`.
-                # Kita secara tegas memasukkannya jika row terakhir tidak memilikinya.
-                if first_texts and first_texts[0].lower() in ["satuan", "gram", "hari", "tanggal"] and first_texts[0] not in last_texts:
-                    headers_raw = [first_texts[0]] + last_texts
-                elif len(last_texts) < total_cols and first_texts:
-                    missing_count = total_cols - len(last_texts)
-                    headers_raw = first_texts[:missing_count] + last_texts
+                if len(first_texts) <= total_cols and len(last_texts) <= total_cols:
+                    if len(first_texts) == total_cols and len(last_texts) == total_cols:
+                        headers_raw = []
+                        for f, l in zip(first_texts, last_texts):
+                            if f and f.lower() not in l.lower():
+                                headers_raw.append(f"{f} {l}".strip())
+                            else:
+                                headers_raw.append(l or f)
+                    elif len(last_texts) < total_cols:
+                        valid_first = [t for t in first_texts if t]
+                        missing_count = total_cols - len(last_texts)
+                        headers_raw = valid_first[:missing_count] + last_texts
+                    else:
+                        headers_raw = last_texts
                 else:
                     headers_raw = last_texts
             else:
-                # Kolom aktual biasanya ada di row header terakhir
                 headers_raw = [th.get_text(strip=True) for th in header_trs[-1].find_all(["th", "td"])]
+                
+        # Memastikan unik untuk menghindari overwrite dictionary keys (misal dua kolom bernama "per Gram (Rp)")
+        seen = {}
+        for i in range(len(headers_raw)):
+            h = headers_raw[i] if headers_raw[i] else f"Col_{i+1}"
+            if h in seen:
+                seen[h] += 1
+                headers_raw[i] = f"{h} ({seen[h]})"
+            else:
+                seen[h] = 0
+                headers_raw[i] = h
             
         for tr in data_trs:
             cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
@@ -445,26 +456,45 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                     let firstTexts = [];
                     if (headerRows.length > 1) {
                         firstTexts = Array.from(headerRows[0].querySelectorAll('th, td'))
-                            .map(x => x.innerText.trim())
-                            .filter(t => t);
-                        const filtered = firstTexts.filter(t => t.toLowerCase() !== 'satuan');
+                            .map(x => x.innerText.trim());
+                        const filtered = firstTexts.filter(t => t && t.toLowerCase() !== 'satuan');
                         if (filtered.length > 0) {
                             title = filtered.join(' & ');
                         }
                     }
                     
                     const lastTexts = Array.from(headerRows[headerRows.length-1].querySelectorAll('th, td')).map(x => x.innerText.trim());
+                    const totalCols = dataRows.length > 0 ? Array.from(dataRows[0].querySelectorAll('td, th')).length : lastTexts.length;
                     
-                    // Seringkali kolom pertama (seperti "Satuan", "Gram", "Hari") di-rowspan sejajar dengan sub-header.
-                    if (firstTexts.length > 0 && ['satuan', 'gram', 'hari', 'tanggal'].includes(firstTexts[0].toLowerCase()) && !lastTexts.includes(firstTexts[0])) {
-                        hdrs = [firstTexts[0], ...lastTexts];
-                    } else if (dataRows.length > 0 && lastTexts.length < Array.from(dataRows[0].querySelectorAll('th, td')).length && firstTexts.length > 0) {
-                        const missingCount = Array.from(dataRows[0].querySelectorAll('th, td')).length - lastTexts.length;
-                        hdrs = [...firstTexts.slice(0, missingCount), ...lastTexts];
+                    if (firstTexts.length <= totalCols && lastTexts.length <= totalCols) {
+                        if (firstTexts.length === totalCols && lastTexts.length === totalCols) {
+                            hdrs = firstTexts.map((f, i) => {
+                                const l = lastTexts[i];
+                                return (f && !l.toLowerCase().includes(f.toLowerCase())) ? `${f} ${l}`.trim() : (l || f);
+                            });
+                        } else if (lastTexts.length < totalCols) {
+                            const validFirst = firstTexts.filter(t => t);
+                            const missingCount = totalCols - lastTexts.length;
+                            hdrs = [...validFirst.slice(0, missingCount), ...lastTexts];
+                        } else {
+                            hdrs = lastTexts;
+                        }
                     } else {
                         hdrs = lastTexts;
                     }
                 }
+                
+                // Ensure unique headers
+                const seen = {};
+                hdrs = hdrs.map((h, i) => {
+                    let key = h ? h : `Col_${i+1}`;
+                    if (seen[key] !== undefined) {
+                        seen[key]++;
+                        return `${key} (${seen[key]})`;
+                    }
+                    seen[key] = 0;
+                    return key;
+                });
                 
                 const rows = [];
                 dataRows.forEach(tr => {
