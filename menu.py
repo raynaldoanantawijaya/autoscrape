@@ -745,19 +745,27 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
                 if nuxt_data:
                     result["__NUXT__"] = nuxt_data
                 used_technique = "Network Capture"
-            else:
-                # ── Langkah 4: DOM Extraction (browser, konten visible di halaman) ──
-                warn(f"  Network Capture tidak menangkap API, mencoba DOM Extraction...")
-                info(f"  → Teknik ④: DOM Extraction (visible page content)...")
-                dom_data = technique_dom_extraction(
-                    url,
-                    selectors=["table", '[class*="price"]', '[class*="harga"]',
-                               '[class*="card"]', '[class*="product"]', 'article']
-                )
-                if dom_data and (dom_data.get("tables") or dom_data.get("articles")):
-                    t = len(dom_data.get("tables", []))
-                    a = len(dom_data.get("articles", []))
-                    ok(f"  {t} tabel + {a} item via DOM Extraction")
+            
+            # ── Langkah 4: DOM Extraction (browser, konten visible di halaman) ──
+            # Selalu jalankan DOM Extraction sebagai pelengkap jika SSR & Direct Request gagal menemukan tabel
+            warn(f"  Memeriksa DOM Extraction untuk tabel fisik di halaman...")
+            info(f"  → Teknik ④: DOM Extraction (visible page content)...")
+            dom_data = technique_dom_extraction(
+                url,
+                selectors=["table", '[class*="price"]', '[class*="harga"]',
+                           '[class*="card"]', '[class*="product"]', 'article']
+            )
+            if dom_data and (dom_data.get("tables") or dom_data.get("articles")):
+                t = len(dom_data.get("tables", []))
+                a = len(dom_data.get("articles", []))
+                ok(f"  {t} tabel + {a} item via DOM Extraction")
+                
+                if result and result.get("technique") == "network_capture":
+                    # Gabungkan DOM dengan hasil Network Capture
+                    result["tables"] = dom_data.get("tables", [])
+                    result["articles"] = dom_data.get("articles", [])
+                    used_technique = "Network Capture + DOM Extraction"
+                else:
                     result = {"technique": "dom_extraction", **dom_data}
                     used_technique = "DOM Extraction"
 
