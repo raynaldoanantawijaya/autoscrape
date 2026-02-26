@@ -1429,8 +1429,13 @@ def run_custom_scrape(url: str, output_name: str = "custom_film"):
                 completed[0] += 1
                 log.error(f"  ✗ [{completed[0]}/{len(found_films)}] {f_title}: {exc}")
 
-    # Gunakan max 5 workers untuk detail (masing-masing bisa spawn sub-threads untuk episodes)
-    with ThreadPoolExecutor(max_workers=min(len(found_films), 5)) as executor:
+    # DrakorKita sites perlukan Playwright — batasi ke 2 worker agar browser tidak crash
+    # Non-DrakorKita bisa 5 worker (HTTP only, ringan)
+    is_drakorkita = any("/detail/" in f.get("detail_url", "") for f in found_films[:3])
+    workers = 2 if is_drakorkita else min(len(found_films), 5)
+    log.info(f"  ℹ Paralel: {workers} worker {'(DrakorKita — Playwright mode)' if is_drakorkita else ''}")
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         tasks = {executor.submit(_process_film, f): f for f in found_films}
         try:
             for future in as_completed(tasks):
