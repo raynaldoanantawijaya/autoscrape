@@ -435,6 +435,104 @@ def crawl_film_listings(start_url: str, max_pages: int = 9999, max_films: int = 
                         break
         else:
             break
+    # ═══════════════════════════════════════════════════════════════════
+    # FALLBACK: Jika hasil sedikit (< 200), coba sitemap XML + archives
+    # WordPress/GMR themes sering batasi homepage, tapi katalog lengkap
+    # ada di sitemap atau archive pages (/best-rating/, /genre/xxx/)
+    # ═══════════════════════════════════════════════════════════════════
+    if len(all_films) < 200 and paging_mode != 'drakorkita':
+        log.info(f"  ℹ Hanya {len(all_films)} film dari homepage. Mencari katalog lengkap...")
+
+        # --- Metode 1: XML Sitemap ---
+        sitemap_urls = []
+        try:
+            sitemap_index_url = f"{base_url}/sitemap_index.xml"
+            sitemap_xml = _get_html(sitemap_index_url)
+            if sitemap_xml and '<sitemap>' in sitemap_xml:
+                # Parse sitemap index → cari post-sitemap*.xml
+                sm_matches = re.findall(r'<loc>(.*?post-sitemap\d*\.xml)</loc>', sitemap_xml)
+                if sm_matches:
+                    log.info(f"  📄 Sitemap ditemukan: {len(sm_matches)} post-sitemap files")
+
+                    def _parse_sitemap(sm_url):
+                        """Parse satu sitemap XML, return list of post URLs."""
+                        urls = []
+                        try:
+                            xml = _get_html(sm_url)
+                            if xml:
+                                locs = re.findall(r'<loc>(.*?)</loc>', xml)
+                                for loc in locs:
+                                    loc = loc.strip()
+                                    # Skip halaman non-film (homepage, category, page, tag, author)
+                                    if loc == base_url or loc == f"{base_url}/":
+                                        continue
+                                    if any(skip in loc for skip in ['/category/', '/genre/', '/tag/',
+                                                                     '/author/', '/page/', '/wp-',
+                                                                     '/sitemap', '/feed/', '/comment']):
+                                        continue
+                                    urls.append(loc)
+                        except Exception:
+                            pass
+                        return urls
+
+                    # Paralel fetch semua sitemap
+                    with ThreadPoolExecutor(max_workers=5) as ex:
+                        futures = {ex.submit(_parse_sitemap, sm): sm for sm in sm_matches}
+                        for f in as_completed(futures):
+                            sitemap_urls.extend(f.result())
+
+                    # Dedup dan tambahkan sebagai film entries
+                    new_from_sitemap = 0
+                    for url in sitemap_urls:
+                        if url not in seen_urls:
+                            seen_urls.add(url)
+                            # Extract judul dari URL slug
+                            slug = url.rstrip('/').split('/')[-1]
+                            title = slug.replace('-', ' ').title()
+                            all_films.append({
+                                "title": title,
+                                "detail_url": url,
+                                "poster": "",
+                            })
+                            new_from_sitemap += 1
+
+                    if new_from_sitemap > 0:
+                        log.info(f"     → {new_from_sitemap} judul baru dari sitemap (total: {len(all_films)})")
+        except Exception:
+            pass
+
+        # --- Metode 2: /best-rating/ archive (jika sitemap gagal/sedikit) ---
+        if len(all_films) < 200:
+            for archive_slug in ['best-rating', 'popular', 'movies', 'film']:
+                archive_url = f"{base_url}/{archive_slug}/"
+                test_html = _get_html(archive_url)
+                if test_html:
+                    test_films = _fetch_listing_page(archive_url, base_url)
+                    if len(test_films) > 0:
+                        log.info(f"  📄 Archive /{archive_slug}/ ditemukan. Crawling...")
+                        arch_page = 1
+                        arch_consecutive_empty = 0
+                        while arch_page <= 500:
+                            arch_page += 1
+                            arch_url = f"{base_url}/{archive_slug}/page/{arch_page}/"
+                            arch_films = _fetch_listing_page(arch_url, base_url)
+                            new_count = 0
+                            for f in arch_films:
+                                if f["detail_url"] not in seen_urls:
+                                    seen_urls.add(f["detail_url"])
+                                    all_films.append(f)
+                                    new_count += 1
+                            if new_count == 0:
+                                arch_consecutive_empty += 1
+                                if arch_consecutive_empty >= 2:
+                                    break
+                            else:
+                                arch_consecutive_empty = 0
+                            if arch_page % 10 == 0:
+                                log.info(f"     → Halaman {arch_page}: total {len(all_films)} judul")
+                            time.sleep(0.3)
+                        log.info(f"     → Archive /{archive_slug}/: total {len(all_films)} judul")
+                        break  # Gunakan archive pertama yang berhasil
 
     return all_films
 
