@@ -251,7 +251,8 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
             
         for tr in data_trs:
             cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
-            if cells and len(cells) >= 2:
+            valid_count = len([c for c in cells if c])
+            if valid_count >= 2:
                 # Handle cell count mismatch
                 if headers_raw and len(cells) != len(headers_raw):
                     if len(cells) < len(headers_raw):
@@ -523,7 +524,8 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                 const rows = [];
                 dataRows.forEach(tr => {
                     const cells = Array.from(tr.querySelectorAll('td, th')).map(c => c.innerText.trim());
-                    if (cells.length >= 2) {
+                    const validCount = cells.filter(c => c).length;
+                    if (validCount >= 2) {
                         if (hdrs.length && cells.length !== hdrs.length) {
                             if (cells.length < hdrs.length) {
                                 while(cells.length < hdrs.length) cells.push("");
@@ -1640,7 +1642,7 @@ def run_view_results():
             "subdir": "drakorkita",
         },
         "🥇 Harga Emas": {
-            "patterns": ["emas", "gold", "galeri24", "logam_mulia"],
+            "patterns": ["emas", "gold", "galeri24", "logammulia"],
         },
         "₿  Cryptocurrency": {
             "patterns": ["crypto", "coinmarketcap", "bitcoin", "coin"],
