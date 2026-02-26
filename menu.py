@@ -249,10 +249,21 @@ def technique_direct_request(url: str, category: str = "general") -> dict | None
                 seen[h] = 0
                 headers_raw[i] = h
             
+        base_title = title
         for tr in data_trs:
             cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
             valid_count = len([c for c in cells if c])
-            if valid_count >= 2:
+            
+            if valid_count == 1:
+                sub_text = [c for c in cells if c][0]
+                if rows:
+                    tables.append({"title": title, "headers": headers_raw, "rows": rows})
+                    rows = []
+                if base_title and sub_text.lower() not in base_title.lower():
+                    title = f"{base_title} - {sub_text}"
+                else:
+                    title = sub_text
+            elif valid_count >= 2:
                 # Handle cell count mismatch
                 if headers_raw and len(cells) != len(headers_raw):
                     if len(cells) < len(headers_raw):
@@ -521,11 +532,24 @@ def technique_dom_extraction(url: str, selectors: list[str] = None) -> dict | No
                     return key;
                 });
                 
-                const rows = [];
+                let baseTitle = title;
+                let rows = [];
                 dataRows.forEach(tr => {
                     const cells = Array.from(tr.querySelectorAll('td, th')).map(c => c.innerText.trim());
                     const validCount = cells.filter(c => c).length;
-                    if (validCount >= 2) {
+                    
+                    if (validCount === 1) {
+                        const subText = cells.filter(c => c)[0];
+                        if (rows.length > 0) {
+                            results.push({title, headers: hdrs, rows});
+                            rows = [];
+                        }
+                        if (baseTitle && !baseTitle.toLowerCase().includes(subText.toLowerCase())) {
+                            title = `${baseTitle} - ${subText}`;
+                        } else {
+                            title = subText;
+                        }
+                    } else if (validCount >= 2) {
                         if (hdrs.length && cells.length !== hdrs.length) {
                             if (cells.length < hdrs.length) {
                                 while(cells.length < hdrs.length) cells.push("");
