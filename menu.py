@@ -709,9 +709,10 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
     if "coinmarketcap.com" in url.lower():
         info(f"  → Teknik Khusus: CoinMarketCap Native API...")
         import requests
-        api_url = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit=100&convert=USD"
+        api_url = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit=10000&convert=USD"
         try:
-            resp = requests.get(api_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+            # Increase timeout heavily since fetching 10000 items takes longer and response is big
+            resp = requests.get(api_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
             data = resp.json()
             items = data.get("data", {}).get("cryptoCurrencyList", [])
             if items:
