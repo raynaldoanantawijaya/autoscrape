@@ -705,11 +705,57 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
     timestamp = int(time.time())
     result = None
     used_technique = ""
+    # ── KHUSUS COINMARKETCAP ──
+    if "coinmarketcap.com" in url.lower():
+        info(f"  → Teknik Khusus: CoinMarketCap Native API...")
+        import requests
+        api_url = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit=100&convert=USD"
+        try:
+            resp = requests.get(api_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+            data = resp.json()
+            items = data.get("data", {}).get("cryptoCurrencyList", [])
+            if items:
+                rows = []
+                for item in items:
+                    quotes = item.get("quotes", [{}])[0]
+                    
+                    price = quotes.get('price', 0)
+                    price_str = f"${price:,.4f}" if price < 2 else f"${price:,.2f}"
+                    
+                    rows.append({
+                        "Rank": str(item.get("cmcRank", "")),
+                        "Name": item.get("name", ""),
+                        "Symbol": item.get("symbol", ""),
+                        "Price": price_str,
+                        "1h %": f"{quotes.get('percentChange1h', 0):.2f}%",
+                        "24h %": f"{quotes.get('percentChange24h', 0):.2f}%",
+                        "7d %": f"{quotes.get('percentChange7d', 0):.2f}%",
+                        "Market Cap": f"${quotes.get('marketCap', 0):,.0f}",
+                        "Volume(24h)": f"${quotes.get('volume24h', 0):,.0f}",
+                        "Circulating Supply": f"{item.get('circulatingSupply', 0):,.0f} {item.get('symbol', '')}"
+                    })
+                result = {
+                    "technique": "coinmarketcap_api",
+                    "tables": [{
+                        "title": "CoinMarketCap Top 100 Cryptocurrencies",
+                        "headers": ["Rank", "Name", "Symbol", "Price", "1h %", "24h %", "7d %", "Market Cap", "Volume(24h)", "Circulating Supply"],
+                        "rows": rows
+                    }]
+                }
+                used_technique = "Native API"
+                ok(f"  {len(items)} crypto data ditemukan via CoinMarketCap API")
+        except Exception as e:
+            err(f"  Gagal mengambil API CoinMarketCap: {e}")
 
-    # ── Langkah 1: SSR Parser — Next.js / Nuxt (paling cepat, tanpa browser) ──
-    info(f"  → Teknik ①: SSR Parser (Next.js / Nuxt)...")
-    ssr = technique_ssr_parser(url)
-    if ssr:
+    ssr = None
+    if not result:
+        # ── Langkah 1: SSR Parser — Next.js / Nuxt (paling cepat, tanpa browser) ──
+        info(f"  → Teknik ①: SSR Parser (Next.js / Nuxt)...")
+        ssr = technique_ssr_parser(url)
+        
+    if result and used_technique == "Native API":
+        pass # Skip Langkah 1-4 entirely
+    elif ssr:
         ok(f"  SSR data ditemukan! (__NEXT_DATA__ / __NUXT__)")
         result = {"technique": "ssr_parser", "ssr_data": ssr}
         used_technique = "SSR Parser"
