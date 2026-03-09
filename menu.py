@@ -848,6 +848,52 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
                            '[class*="card"]', '[class*="product"]', 'article']
             )
             if dom_data and (dom_data.get("tables") or dom_data.get("articles")):
+                
+                # ── KHUSUS INVESTING.COM CRYPTO: Rapikan Format DOM Tabel ──
+                if "id.investing.com/crypto" in url.lower() and dom_data.get("tables"):
+                    for table in dom_data["tables"]:
+                        new_headers = []
+                        valid_col_indices = []
+                        
+                        # Filter header yang tidak relevan ('Watch', kolom kosong)
+                        for col_idx, hdr in enumerate(table["headers"]):
+                            if hdr.lower() not in ["watch", ""] and not hdr.startswith("Col_"):
+                                new_headers.append(hdr)
+                                valid_col_indices.append(col_idx)
+                                
+                        # Jika ada "Nama" (Nama Koin + Simbol), pisahkan jadi dua kolom
+                        nama_idx = -1
+                        try:
+                            nama_idx = new_headers.index("Nama")
+                            new_headers.insert(nama_idx + 1, "Simbol")
+                        except ValueError:
+                            pass
+
+                        new_rows = []
+                        for row in table["rows"]:
+                            new_row = {}
+                            original_values = list(row.values())
+                            
+                            valid_vals = [original_values[i] for i in valid_col_indices if i < len(original_values)]
+                            
+                            for h_idx, hdr in enumerate(new_headers):
+                                if hdr == "Simbol": continue # Diisi saat memproses "Nama"
+                                
+                                val_idx = h_idx if nama_idx == -1 or h_idx <= nama_idx else h_idx - 1
+                                val = valid_vals[val_idx] if val_idx < len(valid_vals) else ""
+                                
+                                if hdr == "Nama":
+                                    parts = val.split("\n")
+                                    new_row["Nama"] = parts[0].strip() if len(parts) > 0 else val.strip()
+                                    new_row["Simbol"] = parts[1].strip() if len(parts) > 1 else ""
+                                else:
+                                    new_row[hdr] = val.strip()
+                            
+                            new_rows.append(new_row)
+                            
+                        table["headers"] = new_headers
+                        table["rows"] = new_rows
+
                 t = len(dom_data.get("tables", []))
                 a = len(dom_data.get("articles", []))
                 ok(f"  {t} tabel + {a} item via DOM Extraction")
