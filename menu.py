@@ -31,6 +31,12 @@ import glob
 from datetime import datetime
 from pathlib import Path
 
+# Push GitHub Module
+try:
+    from push_github import push_file_to_github
+except ImportError:
+    push_file_to_github = None
+
 # ─── Colorama (terminal warna) ───────────────────────────────────────────────
 try:
     from colorama import init, Fore, Back, Style
@@ -2528,6 +2534,93 @@ def run_view_results():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PUSH KE GITHUB (Menu 7)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_push_github():
+    """Menu interaktif untuk push hasil scrape ke GitHub."""
+    print_header("⑦ PUSH KE GITHUB (Buat Endpoint API)")
+    
+    if not push_file_to_github:
+        err("Modul push_github.py tidak ditemukan!")
+        input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        return
+
+    # Kumpulkan semua file JSON
+    all_files = []
+    base_dir = Path(OUTPUT_DIR)
+    if base_dir.exists():
+        for p in base_dir.rglob("*.json"):
+            all_files.append(str(p))
+
+    if not all_files:
+        warn("Belum ada file hasil scrape di folder hasil_scrape/.")
+        input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        return
+
+    # Urutkan berdasarkan waktu modifikasi terbaru
+    all_files.sort(key=os.path.getmtime, reverse=True)
+    
+    # Ambil 15 file terbaru saja untuk mempermudah terminal
+    recent_files = all_files[:15]
+
+    print(f"  {Fore.CYAN}Pilih file yang akan di-push (15 Terbaru):{Style.RESET_ALL}\n")
+    for i, fpath in enumerate(recent_files, 1):
+        fname = os.path.basename(fpath)
+        # Coba deteksi subfolder (kategori)
+        rel_path = os.path.relpath(fpath, OUTPUT_DIR)
+        parts = rel_path.split(os.sep)
+        cat = parts[0].upper() if len(parts) > 1 else "ROOT"
+        
+        sz = round(os.path.getsize(fpath) / 1024, 1)
+        mtime = os.path.getmtime(fpath)
+        dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+        
+        print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. [{Fore.MAGENTA}{cat:^6}{Style.RESET_ALL}] {fname:45} {Fore.CYAN}{sz:>6} KB{Style.RESET_ALL}  {dt}")
+
+    print(f"\n    {Fore.YELLOW} 0{Style.RESET_ALL}. Batal / Kembali ke menu\n")
+
+    choice = ask(f"Pilihan (0-{len(recent_files)})", "0")
+    if choice == "0":
+        return
+
+    try:
+        idx = int(choice) - 1
+        if not (0 <= idx < len(recent_files)):
+            raise ValueError()
+    except ValueError:
+        err("Pilihan tidak valid.")
+        input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        return
+
+    selected_file = recent_files[idx]
+    default_name = os.path.basename(selected_file)
+    
+    print()
+    info(f"File terpilih: {Fore.GREEN}{selected_file}{Style.RESET_ALL}")
+    
+    repo_url = ask("Masukkan URL Repository GitHub (contoh: https://github.com/user/repo)")
+    if not repo_url:
+        warn("Batal push.")
+        time.sleep(1)
+        return
+        
+    target_name = ask(f"Simpan dengan nama file apa di GitHub? [{default_name}]", default_name)
+    if not target_name:
+         target_name = default_name
+    if not target_name.endswith(".json"):
+         target_name += ".json"
+         
+    print()
+    res = push_file_to_github(selected_file, repo_url, target_name)
+    
+    if not res:
+         warn("Silakan periksa pesan error di atas.")
+    
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN MENU
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -2540,9 +2633,10 @@ MENU_OPTIONS = {
     "4": ("📈  Scrape Saham / Stocks",    run_scrape_saham),
     "5": ("🌐  Scrape URL Custom",        run_scrape_custom),
     "6": ("⚡  SCRAPE ALL (Semua Data)", run_scrape_all),
-    "7": ("🚀  Jalankan API Server",      run_api_server),
-    "8": ("📂  Lihat Hasil Scrape",       run_view_results),
-    "9": ("🎬  Scrape Film / Drama",       run_scrape_film),
+    "7": ("🚀  PUSH KE GITHUB (Buat Endpoint)", run_push_github),
+    "8": ("🔌  Jalankan API Server Lokal",   run_api_server),
+    "9": ("📂  Lihat Hasil Scrape",       run_view_results),
+    "10":("🎬  Scrape Film / Drama",       run_scrape_film),
     "0": ("🚪  Keluar",                   None),
 }
 
