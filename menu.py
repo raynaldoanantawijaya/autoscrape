@@ -2610,6 +2610,54 @@ def run_push_github():
          target_name = default_name
     if not target_name.endswith(".json"):
          target_name += ".json"
+
+    # ── Auto Auth Setup ──
+    # Simpan kredensial sederhana ke file lokal
+    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".github_auth.json")
+    saved_user = ""
+    saved_token = ""
+    if os.path.exists(cred_file):
+        try:
+            with open(cred_file, "r") as f:
+                creds = json.load(f)
+                saved_user = creds.get("username", "")
+                saved_token = creds.get("token", "")
+        except: pass
+        
+    print(f"\n  {Fore.CYAN}--- Otorisasi GitHub ---{Style.RESET_ALL}")
+    if saved_user and saved_token:
+        use_saved = ask(f"Gunakan akun yang tersimpan ({saved_user})? (y/n)", "y")
+        if use_saved.lower() == "y":
+             git_user = saved_user
+             git_token = saved_token
+        else:
+             git_user = ask("Username GitHub")
+             git_token = ask("Personal Access Token (PAT)")
+    else:
+        info("Belum ada konfigurasi auto-login GitHub.")
+        git_user = ask("Username GitHub")
+        git_token = ask("Personal Access Token (PAT)")
+        
+    if git_user and git_token:
+        # Save credentials for future
+        try:
+             with open(cred_file, "w") as f:
+                 json.dump({"username": git_user, "token": git_token}, f)
+        except Exception as e:
+             warn(f"Gagal menyimpan kredensial: {e}")
+             
+        # Format the URL mathematically to include the credentials automatically
+        try:
+             from urllib.parse import urlparse, quote
+             parsed = urlparse(repo_url)
+             # Pastikan github.com
+             if "github.com" in parsed.netloc:
+                  # Sisipkan kredensial URL encoded
+                  safe_user = quote(git_user)
+                  safe_token = quote(git_token)
+                  # Format: https://USERNAME:TOKEN@github.com/path
+                  repo_url = f"https://{safe_user}:{safe_token}@{parsed.netloc}{parsed.path}"
+        except: pass
          
     print()
     res = push_file_to_github(selected_file, repo_url, target_name)
