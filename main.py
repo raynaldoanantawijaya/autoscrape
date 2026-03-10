@@ -17,7 +17,7 @@ from config import settings
 from modules import direct_request, network_capture, analysis, js_extractor, interaction, decryption, fallback, anti_detect
 from modules.proxy_manager import proxy_manager
 
-def main(url):
+def main(url, category=""):
     logger.info(f"=== Memulai Auto Web Scraper (6-Layer Intelligence Engine) untuk: {url} ===")
     
     # Tentukan proksi jika digunakan
@@ -37,7 +37,7 @@ def main(url):
             inline_data = analysis.extract_inline_json(html_req, settings.TARGET_KEYWORDS)
             if inline_data:
                 logger.info("Layer 1 Sukses: API Data berhasil ditarik dari script SSR State!")
-                return save_data(inline_data, url, "layer1_ssr_parser")
+                return save_data(inline_data, url, "layer1_ssr_parser", category)
     except Exception as e:
         logger.debug(f"Layer 1 SSR Parser dilewati: {e}")
 
@@ -88,14 +88,14 @@ def main(url):
         # Jika temuan DOM kuat (banyak artikel atau video), langsung jadikan prioritas utama!
         if dom_data and (len(dom_data.get("articles", [])) > 2 or dom_data.get("video_embeds")):
             logger.info(f"Layer 3 Sukses: Berhasil membedah DOM! Menemukan {len(dom_data.get('articles', []))} artikel yang jauh lebih relevan.")
-            return save_data(dom_data, url, "layer3_smart_dom")
+            return save_data(dom_data, url, "layer3_smart_dom", category)
 
     # =========================================================
     # JIKA DOM KOSONG, KEMBALI EVALUASI HASIL LAYER 2 (Network Intercept)
     # =========================================================
     if data and not data.get("smart_dom"): 
         logger.info("-> Mengambil hasil JSON dari Network Interception (Layer 2)...")
-        return save_data(data, url, "layer2_network_capture")
+        return save_data(data, url, "layer2_network_capture", category)
 
     # =========================================================
     # LAYER 4: Playwright Native Context Fetch (IDX Technique)
@@ -110,7 +110,7 @@ def main(url):
             
             if native_data:
                 logger.info("Layer 4 Sukses: Native Fetch berhasil menembus proteksi token API!")
-                return save_data(native_data, url, "layer4_native_fetch")
+                return save_data(native_data, url, "layer4_native_fetch", category)
         except Exception as e:
             logger.error(f"Error pada Layer 4: {e}")
 
@@ -146,7 +146,7 @@ def main(url):
                         
                     if combined_ajax_data:
                         logger.info("Layer 5 Sukses: Berhasil memaksa server WordPress memuntahkan iframe rahasia via AJAX!")
-                        return save_data(combined_ajax_data, url, "layer5_wp_ajax")
+                        return save_data(combined_ajax_data, url, "layer5_wp_ajax", category)
         except Exception as e:
             logger.debug(f"Layer 5 WP AJAX dilewati: {e}")
 
@@ -159,7 +159,7 @@ def main(url):
         llm_data = analysis.ai_llm_extract(capture_result.html_content)
         if llm_data:
             logger.info("Layer 5.5 Sukses: AI LLM berhasil menyusun data tersetruktur dari HTML!")
-            return save_data(llm_data, url, "layer5_5_ai_llm")
+            return save_data(llm_data, url, "layer5_5_ai_llm", category)
 
     # =========================================================
     # LAYER 6: Decryption & External Fallback
@@ -170,7 +170,7 @@ def main(url):
                 logger.info("-> [Layer 6] Terindikasi Enkripsi Extrim, Mencoba Dekripsi Basic...")
                 decrypted_data = decryption.try_decrypt(capture_result, url)
                 if decrypted_data:
-                    return save_data(decrypted_data, url, "layer6_decrypted")
+                    return save_data(decrypted_data, url, "layer6_decrypted", category)
         except Exception as e:
             logger.error(f"Error Dekripsi Layer 6: {e}")
 
@@ -179,7 +179,7 @@ def main(url):
             logger.info("-> [Layer 6] Semua fallback lokal buntu, menggunakan Layanan Web Unlocker Eksternal...")
             data = fallback.use_web_unlocker(url)
             if data:
-                return save_data(data, url, "layer6_fallback_unlocker")
+                return save_data(data, url, "layer6_fallback_unlocker", category)
         else:
             logger.info("-> [Layer 6] Web Unlocker dimatikan. Melewati bypass eksternal.")
     except Exception as e:
@@ -189,7 +189,7 @@ def main(url):
     logger.info("Data yang tertangkap dari browser telah disimpan di folder har/ (jika aktif).")
     return None
 
-def save_data(data, source_url, method):
+def save_data(data, source_url, method, category=""):
     """
     Menyimpan data JSON ke folder hasil_scrape/ dan
     memberikan output jelas ke terminal.
@@ -198,13 +198,16 @@ def save_data(data, source_url, method):
     from urllib.parse import urlparse
     
     try:
-        os.makedirs('hasil_scrape', exist_ok=True)
+        out_dir = "hasil_scrape"
+        if category:
+            out_dir = os.path.join(out_dir, category)
+        os.makedirs(out_dir, exist_ok=True)
         
         domain = urlparse(source_url).netloc.replace('.', '_')
         if not domain:
             domain = "unknown"
             
-        filename = f"hasil_scrape/{domain}_{method}_{int(time.time())}.json"
+        filename = os.path.join(out_dir, f"{domain}_{method}_{int(time.time())}.json")
         
         final_data = {
             "metadata": {
@@ -229,9 +232,9 @@ def save_data(data, source_url, method):
         return data
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
-        main(target)
-    else:
-        print("Penggunaan: python main.py <URL>")
+    import sys, argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("url", help="Target URL to scrape")
+    parser.add_argument("--category", help="Category subfolder to save output to", default="")
+    args = parser.parse_args()
+    main(args.url, args.category)

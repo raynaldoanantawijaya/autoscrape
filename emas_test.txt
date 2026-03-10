@@ -1,0 +1,41 @@
+Testing emas scraping (expected folder: hasil_scrape/emas)...
+  ℹ  Scraping [Galeri24]: https://galeri24.co.id/
+  ℹ    → Teknik ①: SSR Parser (Next.js / Nuxt)...
+  ℹ    → Teknik ②: Direct Request + BeautifulSoup...
+  ⚠    Direct Request kurang data, mencoba Network Capture (browser)...
+  ℹ    → Teknik ③: Network Capture (Intercept XHR/API)...
+  ✓    9 API endpoint tertangkap via Network Capture
+  ⚠    Memeriksa DOM Extraction untuk tabel fisik di halaman...
+  ℹ    → Teknik ④: DOM Extraction (visible page content)...
+  ✓    0 tabel + 24 item via DOM Extraction
+
+  ═════════════════════════════════════════════════════════
+  ✓  Galeri24 BERHASIL DI-SCRAPE (Network Capture + DOM Extraction)
+  ✓  Jumlah data: 1 item
+  ✓  File: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\emas\galeri24_co_id_1773116011.json
+  ═════════════════════════════════════════════════════════
+
+  ℹ  Ukuran file: 112.0 KB
+
+  Preview Data:
+  ℹ    API endpoint yang tertangkap:
+    → https://galeri24.co.id/api/product-categories?take=1000
+    → https://galeri24.co.id/api/banners
+    → https://galeri24.co.id/api/product-variants?take=4&isRecommended=true
+    → https://galeri24.co.id/api/menu
+    → https://galeri24.co.id/api/product-variants?take=4&isPromo=true
+    → Belanja Emas Sekarang
+    → Lihat Semua Produk
+    → Kalung
+Kalung Pitalia - 3.22 gr [GE-1047914] By hwt
+Rp7.458.750
+2.50%
+
+    → Gelang
+Gelang Deliora- - - 2.9 gr [GE-1047348] By HWT
+Rp6.883.500
+2.50
+    → Cincin
+Cincin Edmundo - 2.65 gr [GE-1000607] By Lotus
+Rp6.238.050
+2.50

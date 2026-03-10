@@ -1253,7 +1253,7 @@ def run_scrape_crypto():
         return
 
     print()
-    _scrape_single_url(name, url)
+    _scrape_single_url(name, url, subfolder="crypto")
     input(f"  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
 
@@ -1308,7 +1308,7 @@ def run_scrape_berita():
         return
 
     print()
-    _scrape_single_url(name, url)
+    _scrape_single_url(name, url, subfolder="berita")
     input(f"  {Fore.YELLOW}[Enter untuk kembali ke menu]{Style.RESET_ALL}")
 
 
@@ -1346,7 +1346,9 @@ def run_scrape_saham():
         res = scrape_idx_all()
         if res:
             timestamp = int(time.time())
-            out_path = os.path.join(OUTPUT_DIR, f"idx_combined_{timestamp}.json")
+            save_dir = os.path.join(OUTPUT_DIR, "saham")
+            os.makedirs(save_dir, exist_ok=True)
+            out_path = os.path.join(save_dir, f"idx_combined_{timestamp}.json")
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(res, f, ensure_ascii=False, indent=2)
             
@@ -1362,7 +1364,7 @@ def run_scrape_saham():
         # Pluang Scraping
         name, url = sources[1]
         print()
-        _scrape_single_url("Pluang", url, technique="ssr")  # Pluang bagus pakai SSR
+        _scrape_single_url("Pluang", url, subfolder="saham", technique="ssr")  # Pluang bagus pakai SSR
 
     elif idx == len(sources):
         url = ask("Masukkan URL sumber data saham")
@@ -1377,7 +1379,7 @@ def run_scrape_saham():
             name = default_name
             
         print()
-        _scrape_single_url(name, url)
+        _scrape_single_url(name, url, subfolder="saham")
         
     else:
         err("Pilihan tidak valid.")
@@ -1431,23 +1433,23 @@ def run_scrape_all():
         return
 
     targets = [
-        ("① Galeri24 (Harga Emas)",      "https://galeri24.co.id/"),
-        ("② CoinMarketCap (Crypto)",   "https://coinmarketcap.com/"),
-        ("③ Kompas.com (Berita)",       "https://www.kompas.com/"),
-        ("④ Pluang (Saham)",            "https://pluang.com/saham-as"),
-        ("⑤ TradingEconomics (Forex)",  "https://id.tradingeconomics.com/currencies"),
+        ("① Galeri24 (Harga Emas)",      "https://galeri24.co.id/", "emas"),
+        ("② CoinMarketCap (Crypto)",   "https://coinmarketcap.com/", "crypto"),
+        ("③ Kompas.com (Berita)",       "https://www.kompas.com/", "berita"),
+        ("④ Pluang (Saham)",            "https://pluang.com/saham-as", "saham"),
+        ("⑤ TradingEconomics (Forex)",  "https://id.tradingeconomics.com/currencies", "forex"),
     ]
 
     results = []
     total = len(targets)
 
-    for i, (name, url) in enumerate(targets, 1):
+    for i, (name, url, category) in enumerate(targets, 1):
         head(f"[{i}/{total}] Scraping {name}...")
         t0 = time.time()
         try:
             print(f"  {Fore.CYAN}→ URL: {url}{Style.RESET_ALL}\n")
-            # Call main.py process
-            res = subprocess.run([sys.executable, "main.py", url],
+            # Call main.py process with category
+            res = subprocess.run([sys.executable, "main.py", url, "--category", category],
                                  cwd=os.path.dirname(os.path.abspath(__file__)))
             
             elapsed = round(time.time() - t0, 1)
