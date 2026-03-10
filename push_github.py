@@ -102,13 +102,38 @@ def push_file_to_github(source_file_path: str, repo_url: str, target_filename: s
              err("Gagal memindah file JSON ke dalam folder repository.")
              return False
              
+        # ── 3.5 VERCEL BOILERPLATE INJECTION ──
+        vercel_json_path = os.path.join(repo_dir, "vercel.json")
+        has_vercel_json_already = os.path.exists(vercel_json_path)
+        if not has_vercel_json_already:
+             warn("Membuat vercel.json untuk mengizinkan akses CORS lintas domain...")
+             import json
+             vercel_config = {
+               "headers": [
+                 {
+                   "source": "/(.*)",
+                   "headers": [
+                     { "key": "Access-Control-Allow-Origin", "value": "*" },
+                     { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" }
+                   ]
+                 }
+               ]
+             }
+             with open(vercel_json_path, "w", encoding="utf-8") as vf:
+                 json.dump(vercel_config, vf, indent=2)
+             
         # ── 4. COMMIT & PUSH ──
         warn("Menyiapkan commit...")
-        # Add file
-        _, success = run_git_command(["add", target_filename], repo_dir)
-        if not success:
-            err(f"Gagal git add pada file {target_filename}.")
-            return False
+        # Add files
+        files_to_add = [target_filename]
+        if not has_vercel_json_already:
+            files_to_add.append("vercel.json")
+            
+        for f in files_to_add:
+            _, success = run_git_command(["add", f], repo_dir)
+            if not success:
+                err(f"Gagal git add pada file {f}.")
+                return False
             
         # Check jika ada perubahan (mungkin JSON nya identik dengan push sebelumnya)
         status_out, _ = run_git_command(["status", "--porcelain"], repo_dir)
