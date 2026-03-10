@@ -122,20 +122,96 @@ def push_file_to_github(source_file_path: str, repo_url: str, target_filename: s
              with open(vercel_json_path, "w", encoding="utf-8") as vf:
                  json.dump(vercel_config, vf, indent=2)
              
+        # ── 3.6 STANDALONE REPO INJECTION ──
+        warn("Menginjeksi kode scraper & GitHub Actions...")
+        import glob
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Copy requirements.txt
+        req_src = os.path.join(base_dir, "requirements.txt")
+        if os.path.exists(req_src):
+            shutil.copy2(req_src, os.path.join(repo_dir, "requirements.txt"))
+            
+        # Copy all python files in root
+        for py_file in glob.glob(os.path.join(base_dir, "*.py")):
+            if not os.path.basename(py_file).startswith("test_") and not os.path.basename(py_file).startswith("."):
+                shutil.copy2(py_file, os.path.join(repo_dir, os.path.basename(py_file)))
+                
+        # Determine category based on path substring
+        category = "all"
+        path_lower = source_file_path.lower()
+        if "saham" in path_lower: category = "saham"
+        elif "emas" in path_lower: category = "emas"
+        elif "crypto" in path_lower: category = "crypto"
+        elif "berita" in path_lower: category = "berita"
+        elif "forex" in path_lower: category = "forex"
+        
+        # Create .github/workflows/auto_scrape.yml
+        workflows_dir = os.path.join(repo_dir, ".github", "workflows")
+        os.makedirs(workflows_dir, exist_ok=True)
+        yml_path = os.path.join(workflows_dir, "auto_scrape.yml")
+        
+        yml_content = f"""name: Standalone Scraper ({category})
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape_and_commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Install Playwright
+        run: playwright install chromium --with-deps
+        
+      - name: Run Scraper
+        run: python menu.py --{category}
+        
+      - name: Commit & Push New JSON Data
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          
+          # Ambil hasil JSON terbaru dari folder 
+          latest_json=$(ls -t hasil_scrape/{category}/*.json | head -1 || true)
+          if [ -n "$latest_json" ] && [ -f "$latest_json" ]; then
+             echo "Updating endpoint with $latest_json"
+             cp "$latest_json" "{target_filename}"
+          else
+             echo "Tidak ada file JSON baru dihasilkan."
+          fi
+          
+          git add {target_filename}
+          git diff --quiet && git diff --staged --quiet || (git commit -m "bot: Auto-update {category} API endpoint" && git push)
+"""
+        with open(yml_path, "w", encoding="utf-8") as f:
+            f.write(yml_content)
+
         # ── 4. COMMIT & PUSH ──
         warn("Menyiapkan commit...")
-        # Add files
-        files_to_add = [target_filename]
-        if not has_vercel_json_already:
-            files_to_add.append("vercel.json")
+        # Add EVERYTHING since we inject standalone codebase
+        _, success = run_git_command(["add", "."], repo_dir)
+        if not success:
+            err("Gagal git add pada file-file standalone repo.")
+            return False
             
-        for f in files_to_add:
-            _, success = run_git_command(["add", f], repo_dir)
-            if not success:
-                err(f"Gagal git add pada file {f}.")
-                return False
-            
-        # Check jika ada perubahan (mungkin JSON nya identik dengan push sebelumnya)
+        # Check jika ada perubahan
         status_out, _ = run_git_command(["status", "--porcelain"], repo_dir)
         if not status_out.strip():
             ok(f"File {target_filename} sudah up-to-date di repository. Tidak ada push yang diperlukan.")
