@@ -1,0 +1,31 @@
+Loading page...
+Initial __NEXT_DATA__: 100 coins, hasNextPage=True
+Sample: [
+  {
+    "name": "Bitcoin",
+    "symbol": "BTC",
+    "rank": 1,
+    "last": 70534.2,
+    "marketCap": 1401028750000
+  },
+  {
+    "name": "Ethereum",
+    "symbol": "ETH",
+    "rank": 2,
+    "last": 2052.75,
+    "marketCap": 246735703125
+  },
+  {
+    "name": "Tether USDt",
+    "symbol": "USDT",
+    "rank": 3,
+    "last": 1.0002,
+    "marketCap": 183984359375
+  }
+]
+  Scroll 0: 21 rows visible
+  Scroll 1: 21 rows visible
+  Scroll 2: 21 rows visible
+  Scroll 3: No new rows (21), stopping.
+
+Final visible rows after scrolling: 21

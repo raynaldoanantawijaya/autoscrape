@@ -1,0 +1,35 @@
+INFO:scrapers.custom:\U0001f680 Memindai Struktur URL: https://xdrakor63.nicewap.sbs/all?q=one+spring+night
+INFO:scrapers.custom:\u2713 Tidak ada video/episode di URL ini. Memindai daftar tautan film dengan Multiple Paging...
+INFO:scrapers.custom:  \u2192 Halaman 1: Menemukan 0 film baru. (Total: 0)
+INFO:scrapers.custom:Mencoba Fallback HTTP Requests...
+INFO:scrapers.custom:\u2139 Playwright gagal/diblokir. Mencoba fallback dengan Requests & BeautifulSoup...
+INFO:scrapers.custom:Fallback extracted 111 links. Passing to heuristic filter...
+INFO:scrapers.custom:\u2713 Selesai scanning. Total 27 judul unik ditemukan.
+INFO:scrapers.custom:Daftar Film yang Ditemukan (Total: 27):
+INFO:scrapers.custom:
+\U0001f680 Memulai Auto-Scrape 1 Film/Drama secara PARALEL...
+
+INFO:scrapers.custom:  \u2713 [1/1] One Spring Night Season 1 [Episode 1 | \U0001f3ac 0 Vid | \U0001f4fa 16 Eps
+INFO:scrapers.custom:\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+INFO:scrapers.custom:\u2713 SELESAI AUTO-SCRAPE KUSTOM!
+INFO:scrapers.custom:  Berhasil: 1 Judul
+INFO:scrapers.custom:  File: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\test_xdrakor_1772003826.json
+INFO:scrapers.custom:\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+==================================================
+TESTING XDRAKOR (SEARCH ONE SPRING NIGHT)
+==================================================
+DEBUG FALLBACK -> Target: https://xdrakor63.nicewap.sbs/all?q=one+spring+night | Status: 200
+DEBUG FALLBACK DOM HEAD: <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="id-ID" prefix="og: http://ogp.me/ns#">
+<head profile="http://gmpg.org/xfn/11">
+    <meta name="viewport" content="width=device-wi
+
+  1. One Spring Night (2019) Subtitle Indonesia
+  2. Resident Playbook (2025)
+  3. When Life Gives You Tangerines (2025)
+  4. Dark Figure of Crime (2018)
+  5. Weak Hero Class 1 (2022)
+  ... dan 22 lainnya.
+
+
+[MOCK] Input asked:   ?  Berapa film yang ingin di-scrape? (1-27, 'all' untuk semua) [all]:  -> Replying 1

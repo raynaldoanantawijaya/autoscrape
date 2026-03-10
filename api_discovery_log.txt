@@ -1,0 +1,62 @@
+Loading page 1...
+Paging: {'hasNextPage': True, 'endCursor': 'eyJpbmRleCI6OTl9', 'currentContentView': 'all'}
+Scrolling to bottom to trigger 'load more'...
+No 'show more' button found on the page
+
+API calls captured (21):
+  GET https://trc.taboola.com/1166591/log/3/unip?en=page_view&tim=1773111685681&ref=null&cv=20260308-26-RELEASE&item-url=https%3A%2F%2Fid.investing.com%2Fcr
+  POST https://id5-sync.com/api/config/prebid
+    POST: {"enabledStorageTypes":["html5"],"name":"id5Id","params":{"partner":421},"storage":{"type":"html5","name":"id5id","expires":90,"refreshInSeconds":28800},"bounce":true}
+  GET https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies
+  GET https://api.id5-sync.com/analytics/421/id5-api-js
+  GET https://api.investing.com/api/brokers/brokers?section=brokers
+  POST https://data.investing.com/api/s/track
+    POST: {"type":"track","event":"$experiment_started","properties":{"gtmTrigger":"$experiment_started","Variant name":1,"Experiment name":"Web-all web-inv workstation tabs wsorder","viewport_height":720,"view
+  POST https://data.investing.com/api/s/page
+    POST: {"type":"page","properties":{"title":"Semua Mata Uang Kripto - Investing.com","url":"https://id.investing.com/crypto/currencies","path":"/crypto/currencies","hash":"","search":"","width":1280,"height"
+  POST https://tlx.3lift.com/header/auction?lib=prebid&v=10.27.0&referrer=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&tmax=3000
+    POST: {"imp":[{"id":0,"tagid":"FP_Desktop_Billboard_Default","floor":0.0942,"banner":{"format":[{"w":980,"h":250},{"w":970,"h":250},{"w":970,"h":90},{"w":728,"h":90}]},"fpd":{"context":{"gpid":"Billboard_De
+  POST https://api.w.inmobi.com/openrtb/bidder/prebidjs
+    POST: {"imp":[{"ext":{"gpid":"Billboard_Desktop#/6938/FP_ID_site/FP_ID_Billboard_Default","data":{"divId":"Billboard_Default-1","adg_rtd":{"adunit_position":"8x303878","placement":"FP_Desktop_Billboard_Defa
+  POST https://id.investing.com/gcode/g/measurement/conversion?random=1773111690009&cv=11&tid=G-C4NDLGKVMK&fst=1773111690009&fmt=8&en=session_start&gtm=45g92
+  POST https://id.investing.com/gcode/ag/g/c?v=2&tid=G-C4NDLGKVMK&gtm=45g92e6361v876484137z8810755771za20kzb810755771zd810755771&_p=1773111683727&_gaz=1&gcs=
+  POST https://data.investing.com/api/s/track
+    POST: {"type":"track","event":"header_strip_viewed","properties":{"gtmTrigger":"genericEvent","clientName":"refactored","smd":"b06a7c6a722099c9a194bf7d316cc8d3-1773111686","smdLast":"b06a7c6a722099c9a194bf7
+  GET https://id5-sync.com/api/esp/increment?counter=no-config
+  GET https://trc-events.taboola.com/1166591/log/3/unip?en=pre_d_eng_tb&tos=4770&scd=0&ssd=1&est=1773111685675&ver=36&isls=true&src=i&invt=4500&msa=498732&r
+  GET https://ups.analytics.yahoo.com/ups/58813/fed?gpp_sid=-1&v=1&url=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies
+  GET https://sync6.im-apps.net/9001/pid?ref=null&page=https://id.investing.com/crypto/currencies
+  GET https://oajs.openx.net/esp?url=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&rid=esp
+  GET https://oajs.openx.net/esp?url=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&rid=esp&cc=1
+  GET https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies
+  GET https://securepubads.g.doubleclick.net/gampad/ads?pvsid=6667201742393603&correlator=3755444082232183&output=ldjh&gdfp_req=1&vrg=202603050101&ptt=17&im
+
+All buttons with text (28):
+  TEXT: Masuk  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Daftar Gratis  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Masuk  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Daftar Gratis  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: #  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Nama  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Harga  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Prb (24J)  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Prb (7H)  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Market Cap  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Vol. (24 Jam)  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Total Vol.  CLASS: relative inline-flex items-center justify-center whitespace-nowrap rounded-sm p-
+  TEXT: Mata Uang  CLASS: mx-2 text-xs font-semibold leading-4 hover:text-link text-secondary
+  TEXT: Indeks  CLASS: mx-2 text-xs font-semibold leading-4 hover:text-link text-link
+  TEXT: Komoditas  CLASS: mx-2 text-xs font-semibold leading-4 hover:text-link text-secondary
+  TEXT: Saham  CLASS: mx-2 text-xs font-semibold leading-4 hover:text-link text-secondary
+  TEXT: Paling Aktif  CLASS: -mb-px border-b-2 pb-2.5 pt-2 text-xs font-semibold leading-4 hover:text-link bo
+  TEXT: Gainers %  CLASS: -mb-px border-b-2 pb-2.5 pt-2 text-xs font-semibold leading-4 hover:text-link bo
+  TEXT: Losers %  CLASS: -mb-px border-b-2 pb-2.5 pt-2 text-xs font-semibold leading-4 hover:text-link bo
+  TEXT: Kirim  CLASS: relative ml-6 rounded px-4 py-2 font-bold leading-5 text-white bg-[#8B8F98] shad
+  TEXT: Panduan Komentar  CLASS: mb-3 text-xs leading-4 text-[#28559B] hover:underline
+  TEXT: Pasar  CLASS: text-link mt-4
+  TEXT: Watchlist  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]
+  TEXT: Tanya WarrenAI  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]
+  TEXT: Saham Dipilih oleh AI  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]
+  TEXT: Peringatan  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]
+  TEXT: Broker Teratas  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]
+  TEXT: Berita Terkini  CLASS: text-secondary hover:bg-[#5b616e0f] hover:text-[#232526]

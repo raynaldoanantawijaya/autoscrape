@@ -1,0 +1,42 @@
+﻿python : INFO:scrapers.custo
+m:\U0001f680 Memindai 
+Struktur URL: https://xdrako
+r63.nicewap.sbs/
+At line:1 char:1
++ python test_xdrakor.py *> 
+test_xdrakor_full.log
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (INFO:  
+  scrapers.c...63.nicewap   
+ .sbs/:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+INFO:scrapers.custom:\u2713 
+Tidak ada video/episode di 
+URL ini. Memindai daftar 
+tautan film dengan Multiple 
+Paging...
+INFO:scrapers.custom:  
+\u2192 Halaman 1: Menemukan 
+0 film baru. (Total: 0)
+INFO:scrapers.custom:Mencoba
+ Fallback HTTP Requests...
+INFO:scrapers.custom:\u2139 
+Playwright gagal/diblokir. 
+Mencoba fallback dengan 
+Requests & BeautifulSoup...
+INFO:scrapers.custom:Fallbac
+k extracted 4 links. 
+Passing to heuristic 
+filter...
+ERROR:scrapers.custom:\u2717
+ Fallback juga gagal. 
+Halaman ini mungkin 
+dilindungi anti-bot ketat.
+==================================================
+TESTING XDRAKOR
+==================================================

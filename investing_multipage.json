@@ -1,0 +1,21 @@
+{
+  "page1": {
+    "tableRows": 100,
+    "selects": [],
+    "pageElements": [],
+    "cryptoSectionHTML": "<span class=\"flag-select_icon__pXmDd flag-select_cryptocurrency-icon__J0vlF\"><i class=\"cryptoIcon c_zrx middle undefined\"></i></span>",
+    "scriptData": [
+      "{\"props\":{\"pageProps\":{\"adsConfig\":{\"version\":\"2812\",\"wrapper\":\"3.36.2-rc3\",\"prebid\":\"39\",\"constraints\":{\"bid_factor\":{\"adagio\":[0.94],\"amazon\":[1],\"appnexus\":[0.89],\"criteo\":[0.89],\"inmobi\":[0.89],\"insticator\":[0.86],\"ix\":[0.92],\"medianet\":[0.92],\"pubmatic\":[0.9],\"richaudience\":[0.87],\"seedtag\":[0.",
+      "(window.jitsuQ=window.jitsuQ||[]).push(function(f){var a={};window.mixpanel&&window.mixpanel.get_session_recording_properties&&(a=mixpanel.get_session_recording_properties());for(var c={gtmTrigger:google_tag_manager[\"rm\"][\"10755771\"](118),\"Variant name\":google_tag_manager[\"rm\"][\"10755771\"](119),\"Exp",
+      "(window.jitsuQ=window.jitsuQ||[]).push(function(c){var a={};window.mixpanel&&window.mixpanel.get_session_recording_properties&&(a=mixpanel.get_session_recording_properties());var d={gtmTrigger:google_tag_manager[\"rm\"][\"10755771\"](196),itemId:google_tag_manager[\"rm\"][\"10755771\"](197),itemType:google_",
+      "(window.jitsuQ=window.jitsuQ||[]).push(function(f){var a={};window.mixpanel&&window.mixpanel.get_session_recording_properties&&(a=mixpanel.get_session_recording_properties());for(var c={gtmTrigger:google_tag_manager[\"rm\"][\"10755771\"](359),eventCategory:google_tag_manager[\"rm\"][\"10755771\"](360),event"
+    ]
+  },
+  "page2": {
+    "url": "https://id.investing.com/crypto/currencies/2",
+    "title": "Tunggu sebentar...",
+    "tableRows": 0,
+    "firstRow": "",
+    "lastRow": ""
+  }
+}

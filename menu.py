@@ -748,14 +748,14 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
         except Exception as e:
             err(f"  Gagal mengambil API CoinMarketCap: {e}")
 
-    # ── KHUSUS INVESTING.COM CRYPTO (ALL PAGES) ──
+    # ── KHUSUS INVESTING.COM CRYPTO (__NEXT_DATA__ JSON Extraction) ──
     if "id.investing.com/crypto/currencies" in url.lower():
-        info(f"  → Teknik Khusus: Investing.com Pagination Loop...")
+        info(f"  → Teknik Khusus: Investing.com __NEXT_DATA__ Extraction...")
         from playwright.sync_api import sync_playwright
-        from bs4 import BeautifulSoup
+        import json as _json
         
         all_rows = []
-        headers = []
+        headers = ["Rank", "Nama", "Simbol", "Harga", "Prb (24J)", "Prb (7H)", "Market Cap", "Vol. (24 Jam)"]
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
@@ -764,93 +764,171 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
                     extra_http_headers={"Accept-Language": "id-ID,id;q=0.9"}
                 )
                 page = context.new_page()
-                page_num = 1
-                valid_col_indices = []
-                nama_idx = -1
                 
-                while True:
-                    target_url = f"{url}/{page_num}" if page_num > 1 else url
-                    warn(f"    Mengambil Halaman {page_num}...")
-                    try:
-                        try:
-                            # Let it load but if it times out, the table might already exist
-                            page.goto(target_url, wait_until="load", timeout=15000)
-                        except Exception:
-                            pass
-                            
-                        page.wait_for_timeout(3000)
-                        
-                        tables_html = page.eval_on_selector_all("table", "els => els.map(t => t.outerHTML)")
-                        if not tables_html:
-                            break
-                            
-                        soup = BeautifulSoup(tables_html[0], "html.parser")
-                        trs = soup.find_all("tr")
-                        if len(trs) <= 1:
-                            break
-                            
-                        if page_num == 1:
-                            th_cells = trs[0].find_all(['th', 'td'])
-                            raw_headers = [th.get_text(separator='\\n').strip().replace('\\n', ' ') for th in th_cells]
-                            new_headers = []
-                            for col_idx, hdr in enumerate(raw_headers):
-                                if hdr.lower() not in ["watch", ""] and not hdr.startswith("Col_"):
-                                    new_headers.append(hdr)
-                                    valid_col_indices.append(col_idx)
-                            try:
-                                nama_idx = new_headers.index("Nama")
-                                new_headers.insert(nama_idx + 1, "Simbol")
-                            except ValueError:
-                                pass
-                            headers = new_headers
+                # Block render-blocking ads/images/css for speed
+                def route_intercept(route):
+                    if route.request.resource_type in ["image", "media", "font", "stylesheet"]:
+                        route.abort()
+                    else:
+                        route.continue_()
+                page.route("**/*", route_intercept)
 
-                        page_rows = []
-                        for tr in trs[1:]:
-                            tds = tr.find_all(['td', 'th'])
-                            cells = [td.get_text(separator='\\n').strip() for td in tds]
-                            valid_vals = [cells[i] for i in valid_col_indices if i < len(cells)]
-                            
-                            row_dict = {}
-                            for h_idx, hdr in enumerate(headers):
-                                if hdr == "Simbol": continue
-                                val_idx = h_idx if nama_idx == -1 or h_idx <= nama_idx else h_idx - 1
-                                val = valid_vals[val_idx] if val_idx < len(valid_vals) else ""
-                                
-                                if hdr == "Nama":
-                                    parts = [p for p in val.split("\\n") if p.strip()]
-                                    row_dict["Nama"] = parts[0].strip() if len(parts) > 0 else val.strip()
-                                    row_dict["Simbol"] = parts[-1].strip() if len(parts) > 1 else ""
-                                else:
-                                    row_dict[hdr] = val.replace('\\n', ' ').strip()
-                            page_rows.append(row_dict)
-                            
-                        all_rows.extend(page_rows)
-                        ok(f"      + {len(page_rows)} koin (Total: {len(all_rows)})")
-                        
-                        if len(page_rows) < 80: # Usually 100 per page, if < 80 it's likely the last one
-                            break
-                            
-                        page_num += 1
-                    except Exception as e:
-                        err(f"    Gagal di halaman {page_num}: {e}")
-                        break
-                        
+                warn(f"    Mengambil data dari __NEXT_DATA__...")
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                except Exception:
+                    pass
+                
+                page.wait_for_timeout(3000)
+                
+                # Extract structured crypto data from __NEXT_DATA__ JSON
+                coins = page.evaluate('''() => {
+                    let el = document.getElementById('__NEXT_DATA__');
+                    if (!el) return [];
+                    try {
+                        let d = JSON.parse(el.textContent);
+                        let coins = d.props?.pageProps?.state?.cryptoStore?.cryptoCoinsCollection?._collection || [];
+                        return coins.map(c => ({
+                            rank: c.rank,
+                            name: c.name,
+                            symbol: c.symbol,
+                            price: c.last,
+                            change24h: c.changeOneDay,
+                            change7d: c.changeSevenDays,
+                            marketCap: c.marketCap,
+                            volume24h: c.volumeOneDay
+                        }));
+                    } catch(e) { return []; }
+                }''')
+                
                 browser.close()
+                
+                if coins:
+                    def fmt_price(v):
+                        try:
+                            return f"$ {v:,.2f}" if v and v > 0.01 else f"$ {v}" if v else "$ 0"
+                        except: return str(v)
+                    def fmt_pct(v):
+                        try:
+                            return f"{v*100:.2f}%" if v else "0.00%"
+                        except: return str(v)
+                    def fmt_cap(v):
+                        try:
+                            if not v: return "$ 0"
+                            if v >= 1e12: return f"$ {v/1e12:.2f}T"
+                            if v >= 1e9: return f"$ {v/1e9:.2f}B"
+                            if v >= 1e6: return f"$ {v/1e6:.2f}M"
+                            return f"$ {v:,.0f}"
+                        except: return str(v)
+                    
+                    for coin in coins:
+                        all_rows.append({
+                            "Rank": str(coin.get("rank", "")),
+                            "Nama": coin.get("name", ""),
+                            "Simbol": coin.get("symbol", ""),
+                            "Harga": fmt_price(coin.get("price")),
+                            "Prb (24J)": fmt_pct(coin.get("change24h")),
+                            "Prb (7H)": fmt_pct(coin.get("change7d")),
+                            "Market Cap": fmt_cap(coin.get("marketCap")),
+                            "Vol. (24 Jam)": fmt_cap(coin.get("volume24h"))
+                        })
+                    ok(f"      + {len(all_rows)} koin ditemukan")
                 
             if all_rows:
                 result = {
-                    "technique": "playwright_pagination",
+                    "technique": "investing_nextdata",
                     "tables": [{
                         "title": "Investing.com All Cryptocurrencies",
                         "headers": headers,
                         "rows": all_rows
                     }]
                 }
-                used_technique = "Playwright Pagination"
+                used_technique = "Investing.com __NEXT_DATA__"
                 ok(f"  Selesai! {len(all_rows)} crypto dari Investing.com berhasil di-scrape")
         except Exception as e:
             err(f"  Playwright gagal: {e}")
 
+    # ── KHUSUS IDX.CO.ID (Native API via Browser Fetch) ──
+    if "idx.co.id" in url.lower() and not result:
+        info(f"  → Teknik Khusus: IDX Native API Fetch...")
+        from playwright.sync_api import sync_playwright
+        
+        IDX_BASE_URL = "https://www.idx.co.id/id/"
+        IDX_API_SUMMARY = "https://www.idx.co.id/primary/TradingSummary/GetStockSummary?start=0&length=9999"
+        
+        all_rows = []
+        headers = ["No", "Kode", "Tertinggi", "Terendah", "Penutupan", "Selisih", "%", "Volume", "Nilai", "Frekuensi"]
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                )
+                page = context.new_page()
+                
+                # First visit IDX homepage to get authentication cookies
+                warn(f"    Membuka homepage IDX untuk autentikasi...")
+                try:
+                    page.goto(IDX_BASE_URL, wait_until="networkidle", timeout=40000)
+                except Exception:
+                    pass
+                page.wait_for_timeout(3000)
+                
+                # Now fetch the API using the browser's session cookies
+                warn(f"    Mengambil data dari IDX API...")
+                api_result = page.evaluate(f'''async () => {{
+                    try {{
+                        const res = await fetch("{IDX_API_SUMMARY}");
+                        return await res.json();
+                    }} catch (e) {{ return {{error: e.toString()}}; }}
+                }}''')
+                
+                browser.close()
+                
+                if api_result and not api_result.get("error"):
+                    stocks = api_result.get("data", [])
+                    if stocks:
+                        def fmt_num(v):
+                            try:
+                                if v is None: return "0"
+                                return f"{int(v):,}".replace(",", ".")
+                            except: return str(v)
+                        def fmt_pct(v):
+                            try:
+                                if v is None: return "0.00%"
+                                return f"{float(v):.2f}%"
+                            except: return str(v)
+                        
+                        for i, s in enumerate(stocks, 1):
+                            all_rows.append({
+                                "No": str(i),
+                                "Kode": s.get("StockCode", ""),
+                                "Tertinggi": fmt_num(s.get("High")),
+                                "Terendah": fmt_num(s.get("Low")),
+                                "Penutupan": fmt_num(s.get("Close")),
+                                "Selisih": fmt_num(s.get("Change")),
+                                "%": fmt_pct(s.get("Percentage")),
+                                "Volume": fmt_num(s.get("Volume")),
+                                "Nilai": fmt_num(s.get("Value")),
+                                "Frekuensi": fmt_num(s.get("Frequency"))
+                            })
+                        ok(f"      + {len(all_rows)} saham ditemukan dari IDX API")
+                else:
+                    err(f"    IDX API error: {api_result.get('error', 'unknown')}")
+                
+            if all_rows:
+                result = {
+                    "technique": "idx_native_api",
+                    "tables": [{
+                        "title": "IDX Ringkasan Perdagangan Saham",
+                        "headers": headers,
+                        "rows": all_rows
+                    }]
+                }
+                used_technique = "IDX Native API"
+                ok(f"  Selesai! {len(all_rows)} saham dari IDX berhasil di-scrape")
+        except Exception as e:
+            err(f"  Playwright gagal: {e}")
 
     ssr = None
     if not result:
@@ -858,7 +936,7 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
         info(f"  → Teknik ①: SSR Parser (Next.js / Nuxt)...")
         ssr = technique_ssr_parser(url)
         
-    if result and used_technique in ("Native API", "Playwright Pagination"):
+    if result and used_technique in ("Native API", "Investing.com __NEXT_DATA__", "IDX Native API"):
         pass # Skip Langkah 1-4 entirely
     elif ssr:
         ok(f"  SSR data ditemukan! (__NEXT_DATA__ / __NUXT__)")

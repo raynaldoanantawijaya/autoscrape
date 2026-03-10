@@ -1,0 +1,14 @@
+{
+  "https://api.investing.com/api/financialdata/assets/cryptoCurrencies?fields-list=": {
+    "error": "Failed to fetch"
+  },
+  "https://api.investing.com/api/financialdata/assets/cryptoCurrencies?page-number=": {
+    "error": "Failed to fetch"
+  },
+  "https://api.investing.com/api/financialdata/crypto/currencies?page-number=1&page": {
+    "error": "Failed to fetch"
+  },
+  "https://api.investing.com/api/financialdata?fields-list=id,name,symbol,price&ass": {
+    "error": "Failed to fetch"
+  }
+}

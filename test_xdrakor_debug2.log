@@ -1,0 +1,16 @@
+INFO:scrapers.custom:\U0001f680 Memindai Struktur URL: https://xdrakor63.nicewap.sbs/
+INFO:scrapers.custom:\u2713 Tidak ada video/episode di URL ini. Memindai daftar tautan film dengan Multiple Paging...
+INFO:scrapers.custom:  \u2192 Halaman 1: Menemukan 0 film baru. (Total: 0)
+INFO:scrapers.custom:Mencoba Fallback HTTP Requests...
+INFO:scrapers.custom:\u2139 Playwright gagal/diblokir. Mencoba fallback dengan Requests & BeautifulSoup...
+INFO:scrapers.custom:Fallback extracted 4 links. Passing to heuristic filter...
+ERROR:scrapers.custom:\u2717 Fallback juga gagal. Halaman ini mungkin dilindungi anti-bot ketat.
+==================================================
+TESTING XDRAKOR
+==================================================
+DEBUG FALLBACK -> Target: https://xdrakor63.nicewap.sbs/ | Status: 502
+DEBUG FALLBACK DOM HEAD: <!DOCTYPE html>
+<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!

@@ -1,0 +1,17 @@
+Loading page...
+Initial coins from __NEXT_DATA__: 100
+  Scroll 0: Found 3 crypto API response(s)!
+    URL: https://id.investing.com/crypto/currencies
+    Size: 1720694
+    Preview: <!DOCTYPE html><html lang="id" dir="ltr" class="html"><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="initial-scale=1.0,width=device-width" data-next-head=""/><link rel="...
+    URL: https://data.investing.com/api/s/page
+    Size: 2583
+    Preview: {"destinations":[{"id":"clox8u5ar0005356pqz7qj63n","destinationType":"tag","options":{"hosts":"*","events":"page","debugTill":"2026-02-16T11:33:04.275Z"},"credentials":{"code":"{\"lang\":\"javascript\...
+    URL: https://securepubads.g.doubleclick.net/gampad/ads?pvsid=559796522654577&correlator=3920143757670920&eid=31097105%2C95383157&output=ldjh&gdfp_req=1&vrg=202603090101&ptt=17&impl=fifs&iu_parts=6938%2CFP_
+    Size: 30941
+    Preview: {"/6938/FP_ID_site/FP_ID_Billboard_Default":["html",1,null,null,1,1,1,0,0,null,null,null,1,[["ID=528dec12a6e87060:T=1773111886:RT=1773111886:S=ALNI_MZgf6aAoaa3yocv_0j6ejOhgoy6aA",1806807886,"/","inves...
+
+Total extracted: 100 coins
+First: {'rank': 1, 'name': 'Bitcoin', 'symbol': 'BTC', 'price': 70534.2, 'change24h': 0.05275070667266846, 'change7d': 0.023836150765419006, 'marketCap': 1401028750000, 'volume24h': 48323335937.5, 'totalVol': 0.4627000093460083}
+Last: {'rank': 100, 'name': 'Kaia', 'symbol': 'KAIA', 'price': 0.05, 'change24h': 0.04513173550367355, 'change7d': -0.06058356910943985, 'marketCap': 324346466.0644531, 'volume24h': 9617310.523986816, 'totalVol': 9.999999747378752e-05}
+Saved to investing_nextdata.json

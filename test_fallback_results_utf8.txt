@@ -1,0 +1,53 @@
+﻿Fallback extracted 144 links. Passing to heuristic filter...
+SURVIVED FILTERING: 51
+{'title': 'Honour (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/honour-2026-u31e/'}
+{'title': 'Positively Yours (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/positively-yours-2026-eot/'}
+{'title': 'To My Beloved Thief (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/to-my-beloved-thief-2026-gdbb/'}
+{'title': 'Undercover Miss Hong (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/undercover-miss-hong-2026-3q80/'}
+{'title': 'In Your Radiant Season (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/in-your-radiant-season-2026-fwc2/'}
+{'title': 'No Tail to Tell (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/no-tail-to-tell-2026-urf8/'}
+{'title': 'Love Phobia (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/love-phobia-2026-q4h4/'}
+{'title': 'Our Universe (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/our-universe-2026-0qdy/'}
+{'title': 'Bloody Flower (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/bloody-flower-2026-195j/'}
+{'title': 'The Judge Returns (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-judge-returns-2026-2luz/'}
+{'title': 'The Art of Sarah (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-art-of-sarah-2026-810a/'}
+{'title': 'Spring Fever (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/spring-fever-2026-lkg/'}
+{'title': 'The Wrecking Crew (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-wrecking-crew-2026-u2vr/'}
+{'title': 'Speed Faster (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/speed-faster-2026-sh95/'}
+{'title': 'Greenland 2: Migration (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/greenland-2-migration-2026-2f8l/'}
+{'title': 'Even If This Love Disappears Tonight (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/even-if-this-love-disappears-tonight-2025-n8eu/'}
+{'title': 'Avatar: Fire and Ash (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/avatar-fire-and-ash-2025-xtjk/'}
+{'title': 'Dhurandhar (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/dhurandhar-2025-n7lv/'}
+{'title': 'Afterlight (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/afterlight-2025-9blz/'}
+{'title': 'Wake Up Dead Man: A Knives Out Mystery (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/wake-up-dead-man-a-knives-out-mystery-2025-wz0o/'}
+{'title': 'Torment (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/torment-2025-fy67/'}
+{'title': 'A Merry Little Ex-Mas (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/a-merry-little-ex-mas-2025-vam4/'}
+{'title': 'A Very Jonas Christmas Movie (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/a-very-jonas-christmas-movie-2025-k5zu/'}
+{'title': 'Playdate (2025) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/playdate-2025-t7rn/'}
+{'title': 'Can This Love Be Translated? (2026) Subtitle Indonesia', 'url': 'https://xdrakor63.nicewap.sbs/detail/can-this-love-be-translated-2026-duln/'}
+{'title': 'Resident Playbook (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/resident-playbook-2025-r410/'}
+{'title': 'When Life Gives You Tangerines (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/when-life-gives-you-tangerines-2025-ixaw/'}
+{'title': 'Dark Figure of Crime (2018)', 'url': 'https://xdrakor63.nicewap.sbs/detail/dark-figure-of-crime-2018-548g/'}
+{'title': 'Weak Hero Class 1 (2022)', 'url': 'https://xdrakor63.nicewap.sbs/detail/weak-hero-class-1-2022-t1bs/'}
+{'title': 'The First Frost (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-first-frost-2025-8c3o/'}
+{'title': 'Queen of Tears (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/queen-of-tears-2024-rkzn/'}
+{'title': 'The Trauma Code: Heroes on Call (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-trauma-code-heroes-on-call-2025-ceka/'}
+{'title': 'Family by Choice (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/family-by-choice-2024-bssm/'}
+{'title': 'Squid Game 2 (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/squid-game-2024-083r/'}
+{'title': 'The Judge from Hell (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-judge-from-hell-2024-e2px/'}
+{'title': 'When the Phone Rings (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/when-the-phone-rings-2024-8ovi/'}
+{'title': 'Buried Hearts (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/buried-hearts-2025-hci4/'}
+{'title': 'The Haunted Palace (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-haunted-palace-2025-de2v/'}
+{'title': 'Love Next Door (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/love-next-door-2024-d7l/'}
+{'title': 'Marry My Husband (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/marry-my-husband-2024-on67/'}
+{'title': 'As You Stood By (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/as-you-stood-by-2025-99fa/'}
+{'title': 'Zomvivor (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/zomvivor-2025-s2ra/'}
+{'title': 'One Spring Night (2019)', 'url': 'https://xdrakor63.nicewap.sbs/detail/one-spring-night-2019-wc96/'}
+{'title': 'Melo Movie (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/melo-movie-2025-n6nu/'}
+{'title': 'The Best Thing (2025)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-best-thing-2025-y8ti/'}
+{'title': 'The Nokdu Flower (2019)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-nokdu-flower-2019-rpx5/'}
+{'title': 'Live (2018)', 'url': 'https://xdrakor63.nicewap.sbs/detail/live-2018-8pw/'}
+{'title': 'Eccentric! Chef Moon (2020)', 'url': 'https://xdrakor63.nicewap.sbs/detail/eccentric-chef-moon-2020-ecaj/'}
+{'title': 'Hierarchy (2024)', 'url': 'https://xdrakor63.nicewap.sbs/detail/hierarchy-2024-6r7p/'}
+{'title': 'The Deal (2023)', 'url': 'https://xdrakor63.nicewap.sbs/detail/the-deal-2023-i5rq/'}
+{'title': 'Sci-Fi', 'url': 'https://xdrakor63.nicewap.sbs/all?genre=Sci-Fi'}

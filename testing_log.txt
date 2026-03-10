@@ -1,0 +1,24 @@
+Testing ID Investing.com wrapper...
+  ℹ  Scraping [Id.Investing.Com]: https://id.investing.com/crypto/currencies
+  ℹ    → Teknik Khusus: Investing.com Pagination Loop...
+  ⚠      Mengambil Halaman 1...
+  ✓        + 100 koin (Total: 100)
+  ⚠      Mengambil Halaman 2...
+  ✗      Gagal di halaman 2: Timeout 40000ms exceeded.
+  ✓    Selesai! 100 crypto dari Investing.com berhasil di-scrape
+
+  ═════════════════════════════════════════════════════════
+  ✓  Id.Investing.Com BERHASIL DI-SCRAPE (Playwright Pagination)
+  ✓  Jumlah data: 1 item
+  ✓  File: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\id_investing_com_1773109585.json
+  ═════════════════════════════════════════════════════════
+
+  ℹ  Ukuran file: 37.3 KB
+
+  Preview Data:
+  Tabel (Investing.com All Cryptocurrencies):
+    → 1 | Bitcoin1BTC |  | $69.162,2
+    → 2 | Ethereum2ETH |  | $2.018,25
+    → 3 | Tether USDt3USDT |  | $1,0002
+    → 4 | BNB4BNB |  | $638,60
+    → 5 | XRP5XRP |  | $1,3717

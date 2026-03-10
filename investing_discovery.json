@@ -1,0 +1,138 @@
+{
+  "tableCount": 4,
+  "tables": [
+    {
+      "index": 0,
+      "rowCount": 100,
+      "headers": [
+        "Watch",
+        "#",
+        "",
+        "Nama",
+        "Harga",
+        "Prb (24J)",
+        "Prb (7H)",
+        "Market Cap",
+        "Vol. (24 Jam)",
+        "Total Vol.",
+        "Pasokan Beredar"
+      ]
+    },
+    {
+      "index": 1,
+      "rowCount": 7,
+      "headers": [
+        "Nama",
+        "Terakhir",
+        "Prb.%",
+        "Vol.",
+        ""
+      ]
+    },
+    {
+      "index": 2,
+      "rowCount": 7,
+      "headers": [
+        "Nama",
+        "Terakhir",
+        "Prb.%",
+        "Vol.",
+        ""
+      ]
+    },
+    {
+      "index": 3,
+      "rowCount": 7,
+      "headers": [
+        "Nama",
+        "Terakhir",
+        "Prb.%",
+        "Vol.",
+        ""
+      ]
+    }
+  ],
+  "pagination": [
+    {
+      "tag": "A",
+      "text": "Lebih Banyak Broker",
+      "href": "https://id.investing.com/brokers/"
+    },
+    {
+      "tag": "A",
+      "text": "Morenzo Abadi",
+      "href": "https://id.investing.com/equities/morenzo-abadi-perkasa-tbk-pt"
+    }
+  ],
+  "countLines": [],
+  "url": "https://id.investing.com/crypto/currencies",
+  "title": "Semua Mata Uang Kripto - Investing.com",
+  "apiCalls": [
+    {
+      "url": "https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies",
+      "keys": [
+        "currency",
+        "floorProvider",
+        "skipRate",
+        "modelVersion",
+        "schema",
+        "values"
+      ],
+      "size": 653
+    },
+    {
+      "url": "https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies",
+      "keys": [
+        "currency",
+        "floorProvider",
+        "skipRate",
+        "modelVersion",
+        "schema",
+        "values"
+      ],
+      "size": 653
+    },
+    {
+      "url": "https://sync6.im-apps.net/9001/pid?ref=null&page=https://id.investing.com/crypto/currencies",
+      "keys": [
+        "ppid",
+        "uid"
+      ],
+      "size": 23
+    },
+    {
+      "url": "https://tlx.3lift.com/header/auction?lib=prebid&v=10.27.0&referrer=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&tmax=3000",
+      "keys": [
+        "status"
+      ],
+      "size": 20
+    },
+    {
+      "url": "https://tlx.3lift.com/header/auction?lib=prebid&v=10.27.0&referrer=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&tmax=3000",
+      "keys": [
+        "status"
+      ],
+      "size": 20
+    },
+    {
+      "url": "https://oajs.openx.net/esp?url=https%3A%2F%2Fid.investing.com%2Fcrypto%2Fcurrencies&rid=esp&cc=1",
+      "keys": [
+        "esp",
+        "i"
+      ],
+      "size": 88
+    },
+    {
+      "url": "https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies",
+      "keys": [
+        "currency",
+        "floorProvider",
+        "skipRate",
+        "modelVersion",
+        "schema",
+        "values"
+      ],
+      "size": 657
+    }
+  ]
+}

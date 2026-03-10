@@ -1,0 +1,23 @@
+Testing IDX stock summary scraping...
+  ℹ  Scraping [Idx.Co.Id]: https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-saham/
+  ℹ    → Teknik Khusus: IDX Native API Fetch...
+  ⚠      Membuka homepage IDX untuk autentikasi...
+  ⚠      Mengambil data dari IDX API...
+  ✓        + 958 saham ditemukan dari IDX API
+  ✓    Selesai! 958 saham dari IDX berhasil di-scrape
+
+  ═════════════════════════════════════════════════════════
+  ✓  Idx.Co.Id BERHASIL DI-SCRAPE (IDX Native API)
+  ✓  Jumlah data: 1 item
+  ✓  File: C:\Users\rayna\Pictures\AUTO SCRAPE\auto_scraper\hasil_scrape\idx_co_id_1773113146.json
+  ═════════════════════════════════════════════════════════
+
+  ℹ  Ukuran file: 320.2 KB
+
+  Preview Data:
+  Tabel (IDX Ringkasan Perdagangan Saham):
+    → 1 | AADI | 10.550 | 10.000
+    → 2 | AALI | 7.450 | 7.150
+    → 3 | ABBA | 40 | 40
+    → 4 | ABDA | 2.680 | 2.680
+    → 5 | ABMM | 3.040 | 2.880

@@ -1,0 +1,218 @@
+[
+  {
+    "url": "https://req.adx.ws/prebid",
+    "size": 19839,
+    "keys": [
+      "bids",
+      "userSyncs"
+    ],
+    "sample": "{\"bids\": [{\"requestId\": \"054e752b-f31e-44a0-a9d2-c6cfd42fd1b1\", \"cpm\": 0.16123931, \"currency\": \"EUR\", \"width\": 970, \"height\": 250, \"creativeId\": \"675726454\", \"ad\": \"<iframe style=\\\"border:none;overflow:hidden;max-width:970px;max-height:250px;\\\" scrolling=\\\"no\\\" srcdoc=\\\"&lt;!DOCTYPE html&gt;&lt;html"
+  },
+  {
+    "url": "https://req.adx.ws/prebid",
+    "size": 19169,
+    "keys": [
+      "bids",
+      "userSyncs"
+    ],
+    "sample": "{\"bids\": [{\"requestId\": \"f283fb5b-e1d6-4b3d-af56-2ada5c577e33\", \"cpm\": 0.08794398, \"currency\": \"EUR\", \"width\": 300, \"height\": 600, \"creativeId\": \"675727897\", \"ad\": \"<iframe style=\\\"border:none;overflow:hidden;max-width:300px;max-height:600px;\\\" scrolling=\\\"no\\\" srcdoc=\\\"&lt;!DOCTYPE html&gt;&lt;html"
+  },
+  {
+    "url": "https://c.amazon-adsystem.com/cdn/prod/config?src=600&u=https%3A%2F%2Fid.investing.com&pubid=62fc967f-c818-4721-8598-9825ab285d22",
+    "size": 4830,
+    "keys": [
+      "3pvendor",
+      "3pmetadata",
+      "3psamplerate"
+    ],
+    "sample": "{\"3pvendor\": \"var liveRampPropertyId = '452ea96c-6b0d-477a-aa03-c104f3303111';\\nif (!window.launchPad && liveRampPropertyId && liveRampPropertyId.charAt(0) !== '%') {\\n  var liverampScript = document.createElement('script');\\n  liverampScript.setAttribute('async', 'async');\\n  liverampScript.setAttr"
+  },
+  {
+    "url": "https://api.investing.com/api/brokers/brokers?section=brokers",
+    "size": 2647,
+    "keys": [
+      "data"
+    ],
+    "sample": "{\"data\": {\"brokers_data_list\": [{\"broker_id\": \"mifx-inv\", \"edition\": \"ID\", \"country\": \"ID\", \"priority\": \"101\", \"broker_name\": \"MIFX\", \"broker_track_id\": 479, \"broker_logo\": \"https://brokers.education.investing.com/id/wp-content/uploads/sites/11/2025/10/MIFX_Logo-252x160px-1.png\", \"broker_app_logo\": "
+  },
+  {
+    "url": "https://data.investing.com/api/s/page",
+    "size": 2625,
+    "keys": [
+      "destinations",
+      "ok"
+    ],
+    "sample": "{\"destinations\": [{\"id\": \"clox8u5ar0005356pqz7qj63n\", \"destinationType\": \"tag\", \"options\": {\"debugTill\": \"2026-02-16T11:33:04.275Z\", \"hosts\": \"*\", \"events\": \"page\"}, \"credentials\": {\"code\": \"{\\\"lang\\\":\\\"javascript\\\",\\\"code\\\":\\\"//allowed clients along with name of dataLayer used to push event\\\\r\\\\nco"
+  },
+  {
+    "url": "https://gum.criteo.com/sid/json?origin=criteoPrebidAdapter&domain=id.investing.com&sn=ChromeSyncframe&so=0&topUrl=id.investing.com",
+    "size": 2501,
+    "keys": [
+      "bundle",
+      "bidId",
+      "pixels"
+    ],
+    "sample": "{\"bundle\": \"FoFV-190ZUlFOTZjaE5lb2FwNkl3bk54Zm95WE9lalV1QVdJV01lU3UyQyUyQnZ3ZVBWVHI3WXUzZ0kzR1dDWmo4WThJVmUxVnY5d3YlMkZ0MGlKTVJxVWJJbUJpbUw5RVdmd3hHZkVBRWMzbGNXZXh5TmY0bzdRQkpnWTROd1JLOSUyQnQyQktMblZUTTlzNUhjY0JCdDlhckZXM1ZBM2clM0QlM0Q\", \"bidId\": \"ow73tV9YelpWS1IwSmtsUSUyRiUyRkliY2FxRHFjazJ3ZGZEOWZh"
+  },
+  {
+    "url": "https://id5-sync.com/gm/v3",
+    "size": 1846,
+    "keys": [
+      "generic",
+      "responses"
+    ],
+    "sample": "{\"generic\": {\"signature\": \"ID5_AkF79Hg8ryn7MAEKeT8m5geGf9lNOz4dyqpd9_Tgq_eBG3cu5jpdPPfXpsexqGWR1S5Z-4nMaFwBEw9Lm6EukMiyyyL5vIhVUIGe-ftofFOt49dR_Yl5D7ZfYpEDhwwvGYytcNullqQ9US7Fnp1twRMa813aPF_eBSccf09Biqu6eHtaY9Y\", \"created_at\": \"2026-03-09T08:57:41.434Z\", \"id5_consent\": true, \"original_uid\": \"ID5*RKn"
+  },
+  {
+    "url": "https://sbcharts.investing.com/charts_xml/4ddb3bc6c47462557d95c3496532352b_1day.json",
+    "size": 1700,
+    "keys": [
+      "_comment",
+      "candles",
+      "events",
+      "attr"
+    ],
+    "sample": "{\"_comment\": \"pair_id: 29049, interval: 300, period: 1day\", \"candles\": [[1773021600000, 7277.56], [1773021900000, 7209.52], [1773022200000, 7195.99], [1773022500000, 7269.43], [1773022800000, 7283.52], [1773023100000, 7231.33], [1773023400000, 7257.81], [1773023700000, 7295.73], [1773024000000, 7322"
+  },
+  {
+    "url": "https://cdn.jsdelivr.net/gh/prebid/currency-file@1/latest.json?date=20260309",
+    "size": 1676,
+    "keys": [
+      "generatedAt",
+      "dataAsOf",
+      "conversions"
+    ],
+    "sample": "{\"generatedAt\": \"2026-03-08T16:00:29.564Z\", \"dataAsOf\": \"2026-03-06T00:00:00.000Z\", \"conversions\": {\"USD\": {\"EUR\": 0.8649770781074302, \"USD\": 1, \"JPY\": 157.91886515007351, \"CZK\": 21.12187527030534, \"DKK\": 6.462070755124989, \"GBP\": 0.7498745783236744, \"HUF\": 340.281982527463, \"PLN\": 3.708589222385606"
+  },
+  {
+    "url": "https://api.id5-sync.com/analytics/421/id5-api-js",
+    "size": 1646,
+    "keys": [
+      "sampling",
+      "ingestUrl",
+      "additionalCleanupRules"
+    ],
+    "sample": "{\"sampling\": 20, \"ingestUrl\": \"https://api.id5-sync.com/analytics/event/id5-api-js/421\", \"additionalCleanupRules\": {\"auctionEnd\": [{\"match\": [[\"adUnits\"]], \"apply\": \"erase\"}, {\"match\": [[\"bidderRequests\"], [\"*\"], [\"bids\"], [\"*\"], [\"params\", \"ortb2Imp\", \"mediaTypes\", \"sizes\", \"metrics\", \"rtd\", \"nativ"
+  },
+  {
+    "url": "https://prebid.media.net/rtb/prebid?cid=8CUFV8103",
+    "size": 1281,
+    "keys": [
+      "id",
+      "ext"
+    ],
+    "sample": "{\"id\": \"u7ec8daf3-9448-4657-83cf-9c20d59b382b\", \"ext\": {\"csUrl\": [{\"type\": \"image\", \"url\": \"https://cs.media.net/cksync.php?cs=8\"}, {\"type\": \"image\", \"url\": \"https://x.bidswitch.net/sync?ssp=medianet&gdpr=0&gdpr_consent=&gdpr_pd=1\"}, {\"type\": \"image\", \"url\": \"https://us-u.openx.net/w/1.0/cm?id=78e2d"
+  },
+  {
+    "url": "https://prebid.media.net/rtb/prebid?cid=8CUFV8103",
+    "size": 1281,
+    "keys": [
+      "id",
+      "ext"
+    ],
+    "sample": "{\"id\": \"ue21cd728-bba4-4c61-afb5-543fd2f5c602\", \"ext\": {\"csUrl\": [{\"type\": \"image\", \"url\": \"https://cs.media.net/cksync.php?cs=8\"}, {\"type\": \"image\", \"url\": \"https://x.bidswitch.net/sync?ssp=medianet&gdpr=0&gdpr_consent=&gdpr_pd=1\"}, {\"type\": \"image\", \"url\": \"https://us-u.openx.net/w/1.0/cm?id=78e2d"
+  },
+  {
+    "url": "https://mp.4dex.io/prebid?orgid=1306&gzip=1",
+    "size": 1223,
+    "keys": [
+      "data"
+    ],
+    "sample": "{\"data\": {\"user_syncs\": [{\"html\": \"<iframe id='adg-0-sync' height='0' width='0' marginwidth='0' marginheight='0' scrolling='no' frameborder='0' src='https://ssbsync.smartadserver.com/api/sync?callerId=43&gdpr=0&gdpr_consent=' style='border: 0px; display: none;'></iframe>\"}, {\"html\": \"<img id='adg-1-"
+  },
+  {
+    "url": "https://mp.4dex.io/prebid?orgid=1306&gzip=1",
+    "size": 1223,
+    "keys": [
+      "data"
+    ],
+    "sample": "{\"data\": {\"user_syncs\": [{\"html\": \"<iframe id='adg-0-sync' height='0' width='0' marginwidth='0' marginheight='0' scrolling='no' frameborder='0' src='https://ssbsync.smartadserver.com/api/sync?callerId=43&gdpr=0&gdpr_consent=' style='border: 0px; display: none;'></iframe>\"}, {\"html\": \"<img id='adg-1-"
+  },
+  {
+    "url": "https://id5-sync.com/g/v2/421.json",
+    "size": 1069,
+    "keys": [
+      "signature",
+      "created_at",
+      "id5_consent",
+      "original_uid",
+      "universal_uid",
+      "link_type",
+      "cascade_needed",
+      "privacy",
+      "ext",
+      "cache_control",
+      "ids",
+      "tags"
+    ],
+    "sample": "{\"signature\": \"ID5_AtpHSs9sh6Uj84vF84_FfkQA92sG_tzOwzSlgmYLCp4iln-NXH61gzXf2DFJSxtJXJ22P1cJNuj8dsPFxc4pbiylyRvb_-UFHvlXP73qC_AXKZooMOpZPkwkjI2DWSkG1UtbFn8C4TOVSDvpxkSUyFEnT5DO6tJmGTEAEx2giUH-xoh5dSE\", \"created_at\": \"2026-03-09T08:57:41.434Z\", \"id5_consent\": true, \"original_uid\": \"ID5*xmZR5ggr27VVAI5"
+  },
+  {
+    "url": "https://aax.amazon-adsystem.com/e/dtb/bid",
+    "size": 751,
+    "keys": [
+      "contextual"
+    ],
+    "sample": "{\"contextual\": {\"slots\": [{\"targeting\": [\"amzniid\", \"amznp\", \"amznsz\", \"amznbid\", \"amznactt\"], \"amzniid\": \"JLFMtDTCevPUy1mjSwiKc0YAAAGc0dD6yQUAAAJYAQBhcHNfdHhuX2JpZDEgICBhcHNfdHhuX2ltcDEgICBbzEQX\", \"size\": \"970x250\", \"crid\": \"28699515\", \"meta\": [\"slotID\", \"mediaType\", \"size\"], \"amznactt\": \"OPEN\", \"a"
+  },
+  {
+    "url": "https://ipapi.co/json/",
+    "size": 657,
+    "keys": [
+      "ip",
+      "network",
+      "version",
+      "city",
+      "region",
+      "region_code",
+      "country",
+      "country_name",
+      "country_code",
+      "country_code_iso3",
+      "country_capital",
+      "country_tld",
+      "continent_code",
+      "in_eu",
+      "postal",
+      "latitude",
+      "longitude",
+      "timezone",
+      "utc_offset",
+      "country_calling_code",
+      "currency",
+      "currency_name",
+      "languages",
+      "country_area",
+      "country_population",
+      "asn",
+      "org"
+    ],
+    "sample": "{\"ip\": \"182.9.1.243\", \"network\": \"182.9.0.0/20\", \"version\": \"IPv4\", \"city\": \"Surakarta\", \"region\": \"Central Java\", \"region_code\": \"JT\", \"country\": \"ID\", \"country_name\": \"Indonesia\", \"country_code\": \"ID\", \"country_code_iso3\": \"IDN\", \"country_capital\": \"Jakarta\", \"country_tld\": \".id\", \"continent_code\""
+  },
+  {
+    "url": "https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies",
+    "size": 653,
+    "keys": [
+      "currency",
+      "floorProvider",
+      "skipRate",
+      "modelVersion",
+      "schema",
+      "values"
+    ],
+    "sample": "{\"currency\": \"EUR\", \"floorProvider\": \"PubxFloorProvider\", \"skipRate\": 0.0, \"modelVersion\": \"gpt-cb_AB_a_dt_0.95_dwt_1.0_dnt_0.3_fm_0.15\", \"schema\": {\"fields\": [\"gptSlot\", \"size\"]}, \"values\": {\"/6938/FP_HK_site/FP_HK_Sideblock_1_Default|*\": 0.0979, \"/6938/FP_ES_site/FP_ES_Sideblock_1_Default|*\": 0.07"
+  },
+  {
+    "url": "https://floor.pbxai.com/?pubxId=71b864d1-8747-49a4-9279-13f89d43e57f&page=https://id.investing.com/crypto/currencies",
+    "size": 653,
+    "keys": [
+      "currency",
+      "floorProvider",
+      "skipRate",
+      "modelVersion",
+      "schema",
+      "values"
+    ],
+    "sample": "{\"currency\": \"EUR\", \"floorProvider\": \"PubxFloorProvider\", \"skipRate\": 0.0, \"modelVersion\": \"gpt-cb_AB_a_dt_0.95_dwt_1.0_dnt_0.3_fm_0.15\", \"schema\": {\"fields\": [\"gptSlot\", \"size\"]}, \"values\": {\"/6938/FP_HK_site/FP_HK_Sideblock_1_Default|*\": 0.0979, \"/6938/FP_ES_site/FP_ES_Sideblock_1_Default|*\": 0.07"
+  }
+]

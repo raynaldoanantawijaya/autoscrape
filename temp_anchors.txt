@@ -1,0 +1,200 @@
+HREF: https://id.investing.com/equities/aesler-grup-internasional-tbk-pt
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/aesler-grup-internasional-tbk-pt"><div title="Aesler Grup Internasional Tbk Pt" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Aesler Gr</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/equities/hotel-sahid-ja
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/hotel-sahid-ja"><div title="Hotel Sahid Jaya Tbk" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Hotel Sahid Jaya</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/equities/sekar-bumi
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/sekar-bumi"><div title="Sekar Bumi Tbk" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Sekar Bumi</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/equities/agro-bahari-nusantara-pt-tbk
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/agro-bahari-nusantara-pt-tbk"><div title="Agro Bahari Nusantara PT Tbk" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Agro Bahari Nusantara PT Tbk</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/equities/indo-oil-perkasa-pt
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/indo-oil-perkasa-pt"><div title="Indo Oil Perkasa PT" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Indo Oil Perkasa PT</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/equities/hotel-fitra-international-tbk-pt
+CLASS: 
+HTML: <a href="https://id.investing.com/equities/hotel-fitra-international-tbk-pt"><div title="Hotel Fitra International Tbk PT" class="hover:v2-secondary overflow-hidden text-ellipsis whitespace-nowrap font-semibold hover:text-v2-blue hover:underline">Hotel Fitra International</div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-idx-composite
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-idx-composite" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Mengungguli IHSG</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-idx-composite?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-idx-composite?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-consumer-boom
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/indonesia-consumer-boom" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Geliat Konsumen Indonesia</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-consumer-boom?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/indonesia-consumer-boom?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-commodities
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/indonesia-commodities" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Jawara Komoditas Indonesia</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-commodities?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/indonesia-commodities?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-mid-cap-movers
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/indonesia-mid-cap-movers" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Penggerak Mid-Cap Indonesia</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-mid-cap-movers?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/indonesia-mid-cap-movers?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-select
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/indonesia-select" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Saham Pilihan Indonesia</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/indonesia-select?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/indonesia-select?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-sp-500
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-sp-500" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Mengungguli S&amp;P 500</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-sp-500?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-sp-500?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/dominate-the-dow
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/dominate-the-dow" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Mendominasi Dow</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/dominate-the-dow?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/dominate-the-dow?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/tech-titans
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/tech-titans" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Raksasa Teknologi</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/tech-titans?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/tech-titans?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/midcap-movers
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/midcap-movers" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Penggerak Mid-Cap</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/midcap-movers?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/midcap-movers?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/top-value-stocks
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/top-value-stocks" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Saham Nilai Terbaik</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/top-value-stocks?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/top-value-stocks?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/best-of-buffett
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/best-of-buffett" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Terbaik Dari Buffett</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/best-of-buffett?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/best-of-buffett?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-bmv-ipc
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-bmv-ipc" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Pemimpin Pasar Modal Meksiko</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-bmv-ipc?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-bmv-ipc?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-bovespa
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-bovespa" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Saham Terbaik Brasil</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-bovespa?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-bovespa?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-ftse-italia
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-ftse-italia" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Para Elite Pasar Italia</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-ftse-italia?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-ftse-italia?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-dax
+CLASS: flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline
+HTML: <a href="/pro/propicks/beat-dax" class="flex flex-1 cursor-pointer content-center items-center gap-1.5 hover:underline"><span class="text-sm font-bold leading-5 text-primary">Pilihan Alpha Jerman</span><svg viewBox="0 0 24 24" class="w-3 text-[#6A707C]/70 rtl:-scale-x-100"><use href="/next_/icon.svg?v=82e3c75#chevron-right"></use></svg></a>
+--------------------------------------------------
+HREF: https://id.investing.com/pro/propicks/beat-dax?entry=ws_propicks
+CLASS: flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3
+HTML: <a class="flex cursor-pointer flex-col items-start justify-center gap-4 self-stretch pt-3" href="/pro/propicks/beat-dax?entry=ws_propicks" data-google-interstitial="false"><div class="flex items-center justify-center gap-2 self-stretch rounded bg-gradient-pro-custom py-1.5 pl-3 pr-4 shadow-invProWSButton hover:bg-[#fdbf42]"><svg viewBox="0 0 14 14" class="w-3.5"><use href="/next_/icon.svg?v=82e3c75#lock"></use></svg><div class="flex items-start justify-center gap-1"><span class="text-center font-sans-v2 text-sm font-bold leading-5 text-primary">Buka Strategi</span><svg viewBox="0 0 10 11" class="w-2.5"><use href="/next_/icon.svg?v=82e3c75#shield"></use></svg></div></div></a>
+--------------------------------------------------
+HREF: https://app.appsflyer.com/com.fusionmedia.investing?pid=direct_inv&c=refactored&af_channel=%2Fcrypto%2Fcurrencies&af_adset=id&af_ad=footer+install+buttons&af_pmod_priority=null&af_sub_siteid=null&click_id=null&af_sub1=null&af_ad_id=null&af_sub2=null&af_sub3=null&af_sub4=null&af_sub5=null&af_keywords=null&af_adset_id=null
+CLASS: flex w-full space-x-3 rounded border border-inv-blue-500 bg-white px-6 py-[15px] text-sm font-bold text-link shadow-[0_4px_8px_0_rgba(18,86,160,0.15)] hover:text-link hover:no-underline sm:w-[173px]
+HTML: <a class="flex w-full space-x-3 rounded border border-inv-blue-500 bg-white px-6 py-[15px] text-sm font-bold text-link shadow-[0_4px_8px_0_rgba(18,86,160,0.15)] hover:text-link hover:no-underline sm:w-[173px]" href="https://app.appsflyer.com/com.fusionmedia.investing?pid=direct_inv&amp;c=refactored&amp;af_channel=%2Fcrypto%2Fcurrencies&amp;af_adset=id&amp;af_ad=footer+install+buttons&amp;af_pmod_priority=null&amp;af_sub_siteid=null&amp;click_id=null&amp;af_sub1=null&amp;af_ad_id=null&amp;af_sub2=null&amp;af_sub3=null&amp;af_sub4=null&amp;af_sub5=null&amp;af_keywords=null&amp;af_adset_id=null"><svg viewBox="0 0 24 24" class="size-6"><use href="/next_/misc.svg?v=82e3c75#googleplay"></use></svg><span class="mt-[3px]">Google Play</span></a>
+--------------------------------------------------
+HREF: https://app.appsflyer.com/id909998122?pid=direct_inv&c=refactored&af_channel=%2Fcrypto%2Fcurrencies&af_adset=id&af_ad=footer+install+buttons&af_pmod_priority=null&af_sub_siteid=null&click_id=null&af_sub1=null&af_ad_id=null&af_sub2=null&af_sub3=null&af_sub4=null&af_sub5=null&af_keywords=null&af_adset_id=null
+CLASS: flex w-full space-x-3 rounded border border-inv-blue-500 bg-white px-6 py-[15px] text-sm font-bold text-link shadow-[0_4px_8px_0_rgba(18,86,160,0.15)] hover:text-link hover:no-underline sm:w-[173px]
+HTML: <a class="flex w-full space-x-3 rounded border border-inv-blue-500 bg-white px-6 py-[15px] text-sm font-bold text-link shadow-[0_4px_8px_0_rgba(18,86,160,0.15)] hover:text-link hover:no-underline sm:w-[173px]" href="https://app.appsflyer.com/id909998122?pid=direct_inv&amp;c=refactored&amp;af_channel=%2Fcrypto%2Fcurrencies&amp;af_adset=id&amp;af_ad=footer+install+buttons&amp;af_pmod_priority=null&amp;af_sub_siteid=null&amp;click_id=null&amp;af_sub1=null&amp;af_ad_id=null&amp;af_sub2=null&amp;af_sub3=null&amp;af_sub4=null&amp;af_sub5=null&amp;af_keywords=null&amp;af_adset_id=null"><svg viewBox="0 0 24 24" class="size-6"><use href="/next_/misc.svg?v=82e3c75#appstore"></use></svg><span class="mt-[3px]">App Store</span></a>
+--------------------------------------------------
+HREF: https://id.investing.com/blog/
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/blog/">Blog</a>
+--------------------------------------------------
+HREF: https://id.investing.com/mobile/
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/mobile/">Seluler</a>
+--------------------------------------------------
+HREF: https://id.investing.com/portfolio/
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/portfolio/">Buka Portofolio</a>
+--------------------------------------------------
+HREF: https://id.investing.com/webmaster-tools/
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/webmaster-tools/">Perangkat Webmaster</a>
+--------------------------------------------------
+HREF: https://id.investing.com/about-us/
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/about-us/">Tentang Kami</a>
+--------------------------------------------------
+HREF: https://id.investing.com/about-us/advertise
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="https://id.investing.com/about-us/advertise">Beriklan</a>
+--------------------------------------------------
+HREF: https://id.investing.com/about-us/contact-us
+CLASS: break-normal text-sm leading-5 text-primary
+HTML: <a class="break-normal text-sm leading-5 text-primary" href="/about-us/contact-us">Hubungi Kami</a>
+--------------------------------------------------
+HREF: https://www.facebook.com/InvestingcomID/
+CLASS: 
+HTML: <a href="https://www.facebook.com/InvestingcomID/" title="Facebook"><svg viewBox="0 0 24 24" class="size-6"><use href="/next_/misc.svg?v=82e3c75#facebook"></use></svg></a>
+--------------------------------------------------
+HREF: https://twitter.com/InvestingIndo
+CLASS: 
+HTML: <a href="https://twitter.com/InvestingIndo" title="Twitter"><svg viewBox="0 0 24 24" class="size-6"><use href="/next_/misc.svg?v=82e3c75#twitter"></use></svg></a>
+--------------------------------------------------
+HREF: https://cdn.investing.com/about-us/terms_and_conditions.pdf
+CLASS: hover:underline
+HTML: <a data-test="terms_and_conditions" href="https://cdn.investing.com/about-us/terms_and_conditions.pdf" class="hover:underline" target="_blank" rel="noopener noreferrer">Syarat dan Ketentuan</a>
+--------------------------------------------------
+HREF: https://id.investing.com/about-us/privacy-policy
+CLASS: hover:underline
+HTML: <a data-test="privacy_policy" href="https://id.investing.com/about-us/privacy-policy" class="hover:underline" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
+--------------------------------------------------
+HREF: https://cdn.investing.com/about-us/risk_warning.pdf
+CLASS: hover:underline
+HTML: <a data-test="risk_warning" href="https://cdn.investing.com/about-us/risk_warning.pdf" class="hover:underline" target="_blank" rel="noopener noreferrer">Peringatan Risiko</a>
+--------------------------------------------------
