@@ -748,13 +748,117 @@ def _scrape_single_url(name: str, url: str, subfolder: str = ""):
         except Exception as e:
             err(f"  Gagal mengambil API CoinMarketCap: {e}")
 
+    # ── KHUSUS INVESTING.COM CRYPTO (ALL PAGES) ──
+    if "id.investing.com/crypto/currencies" in url.lower():
+        info(f"  → Teknik Khusus: Investing.com Pagination Loop...")
+        from playwright.sync_api import sync_playwright
+        from bs4 import BeautifulSoup
+        
+        all_rows = []
+        headers = []
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                    extra_http_headers={"Accept-Language": "id-ID,id;q=0.9"}
+                )
+                page = context.new_page()
+                page_num = 1
+                valid_col_indices = []
+                nama_idx = -1
+                
+                while True:
+                    target_url = f"{url}/{page_num}" if page_num > 1 else url
+                    warn(f"    Mengambil Halaman {page_num}...")
+                    try:
+                        try:
+                            # Let it load but if it times out, the table might already exist
+                            page.goto(target_url, wait_until="load", timeout=15000)
+                        except Exception:
+                            pass
+                            
+                        page.wait_for_timeout(3000)
+                        
+                        tables_html = page.eval_on_selector_all("table", "els => els.map(t => t.outerHTML)")
+                        if not tables_html:
+                            break
+                            
+                        soup = BeautifulSoup(tables_html[0], "html.parser")
+                        trs = soup.find_all("tr")
+                        if len(trs) <= 1:
+                            break
+                            
+                        if page_num == 1:
+                            th_cells = trs[0].find_all(['th', 'td'])
+                            raw_headers = [th.get_text(separator='\\n').strip().replace('\\n', ' ') for th in th_cells]
+                            new_headers = []
+                            for col_idx, hdr in enumerate(raw_headers):
+                                if hdr.lower() not in ["watch", ""] and not hdr.startswith("Col_"):
+                                    new_headers.append(hdr)
+                                    valid_col_indices.append(col_idx)
+                            try:
+                                nama_idx = new_headers.index("Nama")
+                                new_headers.insert(nama_idx + 1, "Simbol")
+                            except ValueError:
+                                pass
+                            headers = new_headers
+
+                        page_rows = []
+                        for tr in trs[1:]:
+                            tds = tr.find_all(['td', 'th'])
+                            cells = [td.get_text(separator='\\n').strip() for td in tds]
+                            valid_vals = [cells[i] for i in valid_col_indices if i < len(cells)]
+                            
+                            row_dict = {}
+                            for h_idx, hdr in enumerate(headers):
+                                if hdr == "Simbol": continue
+                                val_idx = h_idx if nama_idx == -1 or h_idx <= nama_idx else h_idx - 1
+                                val = valid_vals[val_idx] if val_idx < len(valid_vals) else ""
+                                
+                                if hdr == "Nama":
+                                    parts = [p for p in val.split("\\n") if p.strip()]
+                                    row_dict["Nama"] = parts[0].strip() if len(parts) > 0 else val.strip()
+                                    row_dict["Simbol"] = parts[-1].strip() if len(parts) > 1 else ""
+                                else:
+                                    row_dict[hdr] = val.replace('\\n', ' ').strip()
+                            page_rows.append(row_dict)
+                            
+                        all_rows.extend(page_rows)
+                        ok(f"      + {len(page_rows)} koin (Total: {len(all_rows)})")
+                        
+                        if len(page_rows) < 80: # Usually 100 per page, if < 80 it's likely the last one
+                            break
+                            
+                        page_num += 1
+                    except Exception as e:
+                        err(f"    Gagal di halaman {page_num}: {e}")
+                        break
+                        
+                browser.close()
+                
+            if all_rows:
+                result = {
+                    "technique": "playwright_pagination",
+                    "tables": [{
+                        "title": "Investing.com All Cryptocurrencies",
+                        "headers": headers,
+                        "rows": all_rows
+                    }]
+                }
+                used_technique = "Playwright Pagination"
+                ok(f"  Selesai! {len(all_rows)} crypto dari Investing.com berhasil di-scrape")
+        except Exception as e:
+            err(f"  Playwright gagal: {e}")
+
+
     ssr = None
     if not result:
         # ── Langkah 1: SSR Parser — Next.js / Nuxt (paling cepat, tanpa browser) ──
         info(f"  → Teknik ①: SSR Parser (Next.js / Nuxt)...")
         ssr = technique_ssr_parser(url)
         
-    if result and used_technique == "Native API":
+    if result and used_technique in ("Native API", "Playwright Pagination"):
         pass # Skip Langkah 1-4 entirely
     elif ssr:
         ok(f"  SSR data ditemukan! (__NEXT_DATA__ / __NUXT__)")
