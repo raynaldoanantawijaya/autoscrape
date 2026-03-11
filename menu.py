@@ -39,9 +39,9 @@ from pathlib import Path
 
 # Push GitHub Module
 try:
-    from push_github import push_file_to_github
+    from push_github import push_to_github
 except ImportError:
-    push_file_to_github = None
+    push_to_github = None
 
 # ─── Colorama (terminal warna) ───────────────────────────────────────────────
 try:
@@ -2579,11 +2579,42 @@ def run_push_github():
     """Menu interaktif untuk push hasil scrape ke GitHub."""
     print_header("⑦ PUSH KE GITHUB (Buat Endpoint API)")
     
-    if not push_file_to_github:
+    if not push_to_github:
         err("Modul push_github.py tidak ditemukan!")
         input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
         return
 
+    # Tanya pengguna, single atau multiple
+    print(f"  {Fore.CYAN}Pilih mode Push GitHub:{Style.RESET_ALL}")
+    print(f"    {Fore.YELLOW}1{Style.RESET_ALL}. Push 1 Kategori Spesifik (Klasik)")
+    print(f"    {Fore.YELLOW}2{Style.RESET_ALL}. Push GABUNGAN (Beberapa Kategori dlm 1 Repo)")
+    print(f"    {Fore.YELLOW}0{Style.RESET_ALL}. Batal\n")
+    
+    mode_choice = ask("Pilihan", "1")
+    if mode_choice == "0":
+        return
+        
+    if mode_choice == "1":
+        _run_push_single()
+    elif mode_choice == "2":
+        _run_push_combined()
+    else:
+        err("Pilihan tidak valid")
+        time.sleep(1)
+        return
+
+def _get_category_from_path(fpath):
+    rel_path = os.path.relpath(fpath, OUTPUT_DIR)
+    parts = rel_path.split(os.sep)
+    cat = parts[0].strip().lower() if len(parts) > 1 else "root"
+    if "saham" in cat: return "saham"
+    if "emas" in cat: return "emas"
+    if "crypto" in cat: return "crypto"
+    if "berita" in cat: return "berita"
+    if "forex" in cat: return "forex"
+    return cat
+
+def _run_push_single():
     # Kumpulkan semua file JSON
     all_files = []
     base_dir = Path(OUTPUT_DIR)
@@ -2592,65 +2623,141 @@ def run_push_github():
             all_files.append(str(p))
 
     if not all_files:
-        warn("Belum ada file hasil scrape di folder hasil_scrape/.")
+        warn("Belum ada file hasil scrape.")
         input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
         return
 
-    # Urutkan berdasarkan waktu modifikasi terbaru
     all_files.sort(key=os.path.getmtime, reverse=True)
-    
-    # Ambil 15 file terbaru saja untuk mempermudah terminal
     recent_files = all_files[:15]
-
+    
     print(f"  {Fore.CYAN}Pilih file yang akan di-push (15 Terbaru):{Style.RESET_ALL}\n")
     for i, fpath in enumerate(recent_files, 1):
         fname = os.path.basename(fpath)
-        # Coba deteksi subfolder (kategori)
-        rel_path = os.path.relpath(fpath, OUTPUT_DIR)
-        parts = rel_path.split(os.sep)
-        cat = parts[0].upper() if len(parts) > 1 else "ROOT"
-        
+        cat = _get_category_from_path(fpath).upper()
         sz = round(os.path.getsize(fpath) / 1024, 1)
         mtime = os.path.getmtime(fpath)
         dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
-        
         print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. [{Fore.MAGENTA}{cat:^6}{Style.RESET_ALL}] {fname:45} {Fore.CYAN}{sz:>6} KB{Style.RESET_ALL}  {dt}")
 
     print(f"\n    {Fore.YELLOW} 0{Style.RESET_ALL}. Batal / Kembali ke menu\n")
 
     choice = ask(f"Pilihan (0-{len(recent_files)})", "0")
-    if choice == "0":
-        return
+    if choice == "0": return
 
     try:
         idx = int(choice) - 1
-        if not (0 <= idx < len(recent_files)):
-            raise ValueError()
+        if not (0 <= idx < len(recent_files)): raise ValueError()
     except ValueError:
         err("Pilihan tidak valid.")
-        input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        input(f"  {Fore.YELLOW}[Enter]{Style.RESET_ALL}")
         return
 
     selected_file = recent_files[idx]
     default_name = os.path.basename(selected_file)
+    cat = _get_category_from_path(selected_file)
     
-    print()
     info(f"File terpilih: {Fore.GREEN}{selected_file}{Style.RESET_ALL}")
     
+    repo_url = _ask_repo_url()
+    if not repo_url: return
+        
+    target_name = ask(f"Simpan dengan nama file apa di GitHub? [{default_name}]", default_name)
+    if not target_name: target_name = default_name
+    if not target_name.endswith(".json"): target_name += ".json"
+    
+    repo_url = _setup_github_auth(repo_url)
+    if not repo_url: return
+         
+    files_to_copy = [{"source": selected_file, "target": target_name, "category": cat}]
+    res = push_to_github(repo_url, files_to_copy)
+    if not res: warn("Silakan periksa error log.")
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+
+def _run_push_combined():
+    all_files = []
+    base_dir = Path(OUTPUT_DIR)
+    if base_dir.exists():
+        for p in base_dir.rglob("*.json"):
+            all_files.append(str(p))
+            
+    if not all_files:
+        warn("Belum ada file hasil scrape.")
+        input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        return
+        
+    cat_to_latest_file = {}
+    for f in all_files:
+        cat = _get_category_from_path(f)
+        if cat not in cat_to_latest_file:
+            cat_to_latest_file[cat] = f
+        else:
+            if os.path.getmtime(f) > os.path.getmtime(cat_to_latest_file[cat]):
+                cat_to_latest_file[cat] = f
+                
+    available_cats = list(cat_to_latest_file.keys())
+    
+    print(f"  {Fore.CYAN}Kategori yang tersedia (otomatis mengambil contoh file JSON terbaru):{Style.RESET_ALL}")
+    for i, c in enumerate(available_cats, 1):
+        print(f"    {Fore.YELLOW}{i}{Style.RESET_ALL}. {c.upper()}")
+        
+    print(f"\n    {Fore.YELLOW} 0{Style.RESET_ALL}. Batal")
+    print(f"  {Fore.CYAN}(Pisahkan angka dengan koma, contoh: 1,2,3 atau ketik 'all'){Style.RESET_ALL}")
+    
+    choice = ask("Pilihan Anda")
+    if choice.strip() == "0": return
+    
+    selected_cats = []
+    if choice.strip().lower() == "all":
+        selected_cats = available_cats
+    else:
+        try:
+            indices = [int(x.strip()) - 1 for x in choice.split(",") if x.strip()]
+            for idx in indices:
+                if 0 <= idx < len(available_cats):
+                    if available_cats[idx] not in selected_cats:
+                        selected_cats.append(available_cats[idx])
+        except Exception:
+            err("Format tidak valid.")
+            input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+            return
+            
+    if not selected_cats:
+        err("Tidak ada kategori yang valid dipilih.")
+        return
+        
+    info(f"Kategori terpilih: {Fore.GREEN}{', '.join(selected_cats).upper()}{Style.RESET_ALL}")
+    
+    repo_url = _ask_repo_url()
+    if not repo_url: return
+    
+    files_to_copy = []
+    for cat in selected_cats:
+        src = cat_to_latest_file[cat]
+        default_target = f"{cat}_data.json"
+        target_name = ask(f"Nama file untuk data '{cat.upper()}' [{default_target}]", default_target)
+        if not target_name: target_name = default_target
+        if not target_name.endswith(".json"): target_name += ".json"
+        
+        files_to_copy.append({"source": src, "target": target_name, "category": cat})
+        
+    repo_url = _setup_github_auth(repo_url)
+    if not repo_url: return
+    
+    print()
+    res = push_to_github(repo_url, files_to_copy)
+    if not res: warn("Periksa pesan error di log push.")
+    input(f"\n  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+
+
+def _ask_repo_url():
     repo_url = ask("Masukkan URL Repository GitHub (contoh: https://github.com/user/repo)")
     if not repo_url:
         warn("Batal push.")
         time.sleep(1)
-        return
-        
-    target_name = ask(f"Simpan dengan nama file apa di GitHub? [{default_name}]", default_name)
-    if not target_name:
-         target_name = default_name
-    if not target_name.endswith(".json"):
-         target_name += ".json"
+        return None
+    return repo_url
 
-    # ── Auto Auth Setup ──
-    # Simpan kredensial sederhana ke file lokal
+def _setup_github_auth(repo_url):
     cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".github_auth.json")
     saved_user = ""
     saved_token = ""
@@ -2672,38 +2779,26 @@ def run_push_github():
              git_user = ask("Username GitHub")
              git_token = ask("Personal Access Token (PAT)")
     else:
-        info("Belum ada konfigurasi auto-login GitHub.")
+        info("Belum ada konfigurasi. Token ini tidak akan dirubah/diekspos.")
         git_user = ask("Username GitHub")
         git_token = ask("Personal Access Token (PAT)")
         
     if git_user and git_token:
-        # Save credentials for future
         try:
              with open(cred_file, "w") as f:
                  json.dump({"username": git_user, "token": git_token}, f)
-        except Exception as e:
-             warn(f"Gagal menyimpan kredensial: {e}")
+        except Exception: pass
              
-        # Format the URL mathematically to include the credentials automatically
         try:
              from urllib.parse import urlparse, quote
              parsed = urlparse(repo_url)
-             # Pastikan github.com
              if "github.com" in parsed.netloc:
-                  # Sisipkan kredensial URL encoded
                   safe_user = quote(git_user)
                   safe_token = quote(git_token)
-                  # Format: https://USERNAME:TOKEN@github.com/path
                   repo_url = f"https://{safe_user}:{safe_token}@{parsed.netloc}{parsed.path}"
         except: pass
-         
-    print()
-    res = push_file_to_github(selected_file, repo_url, target_name)
-    
-    if not res:
-         warn("Silakan periksa pesan error di atas.")
-    
-    input(f"\n  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
+        
+    return repo_url
 
 
 # ══════════════════════════════════════════════════════════════════════════════

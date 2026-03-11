@@ -50,16 +50,21 @@ def format_github_url(url: str) -> str:
          url += ".git"
     return url
 
-def push_file_to_github(source_file_path: str, repo_url: str, target_filename: str):
+def push_to_github(repo_url: str, files_to_copy: list):
     """
-    Meng-clone repo, copy file scrape ke repo, commit, lalu push back.
-    Fungsi ini dijalankan di temp folder agar tidak merusak repo scraper saat ini.
+    Meng-clone repo, copy multiple file scrape ke repo, commit, lalu push back.
+    files_to_copy adalah list of dict: [{"source": "path", "target": "filename.json", "category": "saham"}, ...]
     """
     
-    if not os.path.exists(source_file_path):
-        err(f"File sumber tidak ditemukan: {source_file_path}")
+    if not files_to_copy:
+        err("Daftar file kosong.")
         return False
         
+    for fobj in files_to_copy:
+        if not os.path.exists(fobj["source"]):
+            err(f"File sumber tidak ditemukan: {fobj['source']}")
+            return False
+            
     if not is_valid_github_url(repo_url):
         err("URL tidak valid. Pastikan itu adalah URL repository GitHub (misal: https://github.com/user/repo).")
         return False
@@ -93,14 +98,14 @@ def push_file_to_github(source_file_path: str, repo_url: str, target_filename: s
         current_branch = branch_out if success and branch_out else "main"
         
         # ── 3. COPY FILE ──
-        target_file_path = os.path.join(repo_dir, target_filename)
-        info(f"Menyalin hasil scrape ke: {Fore.CYAN}{target_filename}{Style.RESET_ALL}")
-        shutil.copy2(source_file_path, target_file_path)
-        
-        # Pastikan JSON file-nya sudah tercopy dengan baik
-        if not os.path.exists(target_file_path):
-             err("Gagal memindah file JSON ke dalam folder repository.")
-             return False
+        for fobj in files_to_copy:
+            target_file_path = os.path.join(repo_dir, fobj["target"])
+            info(f"Menyalin hasil scrape ke: {Fore.CYAN}{fobj['target']}{Style.RESET_ALL}")
+            shutil.copy2(fobj["source"], target_file_path)
+            
+            if not os.path.exists(target_file_path):
+                 err(f"Gagal memindah file JSON {fobj['target']} ke dalam folder repository.")
+                 return False
              
         # ── 3.5 VERCEL BOILERPLATE INJECTION ──
         vercel_json_path = os.path.join(repo_dir, "vercel.json")
@@ -146,14 +151,9 @@ def push_file_to_github(source_file_path: str, repo_url: str, target_filename: s
                 shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True,
                                 ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
                 
-        # Determine category based on path substring
-        category = "all"
-        path_lower = source_file_path.lower()
-        if "saham" in path_lower: category = "saham"
-        elif "emas" in path_lower: category = "emas"
-        elif "crypto" in path_lower: category = "crypto"
-        elif "berita" in path_lower: category = "berita"
-        elif "forex" in path_lower: category = "forex"
+        # Determine categories based on files_to_copy
+        categories = list(set([fobj["category"] for fobj in files_to_copy]))
+        combo_name = "Gabungan" if len(categories) > 1 else categories[0]
         
         # Create .github/workflows/auto_scrape.yml
         workflows_dir = os.path.join(repo_dir, ".github", "workflows")
@@ -161,13 +161,19 @@ def push_file_to_github(source_file_path: str, repo_url: str, target_filename: s
         yml_path = os.path.join(workflows_dir, "auto_scrape.yml")
         
         fetch_proxies_step = ""
-        if category in ["saham", "crypto", "forex"]:
+        needs_proxy = any(c in ["saham", "crypto", "forex"] for c in categories)
+        if needs_proxy:
             fetch_proxies_step = """
       - name: Hunt Fresh Working Proxies
-        run: python fetch_proxies.py
-"""
+        run: python fetch_proxies.py"""
         
-        yml_content = f"""name: Standalone Scraper ({category})
+        scrape_steps = ""
+        for cat in categories:
+            scrape_steps += f"""
+      - name: Run Scraper ({cat.upper()})
+        run: python menu.py --{cat}"""
+        
+        yml_content = f"""name: Standalone Scraper ({combo_name})
 
 on:
   schedule:
@@ -196,27 +202,38 @@ jobs:
         run: pip install -r requirements.txt
         
       - name: Install Playwright
-        run: playwright install chromium --with-deps
-{fetch_proxies_step}
-      - name: Run Scraper
-        run: python menu.py --{category}
+        run: playwright install chromium --with-deps{fetch_proxies_step}{scrape_steps}
         
       - name: Commit & Push New JSON Data
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          
-          # Ambil hasil JSON terbaru dari folder 
-          latest_json=$(ls -t hasil_scrape/{category}/*.json | head -1 || true)
-          if [ -n "$latest_json" ] && [ -f "$latest_json" ]; then
-             echo "Updating endpoint with $latest_json"
-             cp "$latest_json" "{target_filename}"
-          else
-             echo "Tidak ada file JSON baru dihasilkan."
+"""
+        for fobj in files_to_copy:
+            cat = fobj["category"]
+            tgt = fobj["target"]
+            # Di dalam pipeline, foldernya dinamis sesuai output default di `menu.py` atau standalone script
+            if cat == "saham":
+                search_dir = "hasil_scrape" # Standalone scrape_idx outputs directly to hasil_scrape or just root? Actually scrape_idx.py writes to `./` by default or `hasil_scrape`? Wait, menu.py --saham calls `run_scrape_saham` which calls `scrape_idx_all()` which saves to `hasil_scrape/saham_idx_...json`.
+                # Actually let's just find the newest JSON inside `hasil_scrape` regardless! 
+                # But to avoid mixing if we have multiple, it's safer to grep by category folder.
+            
+            # Using find to be extremely safe since the struct might be `hasil_scrape/{cat}/...` or `hasil_scrape/*{cat}*`
+            yml_content += f"""
+          latest_{cat}=$(find hasil_scrape -type f -name "*.json" | grep -i '{cat}' | xargs ls -t 2>/dev/null | head -1 || true)
+          if [ -z "$latest_{cat}" ]; then
+              # Fallback if no category folder, just grab the latest overall
+              latest_{cat}=$(ls -t hasil_scrape/*.json 2>/dev/null | head -1 || true)
           fi
-          
-          git add {target_filename}
-          git diff --quiet && git diff --staged --quiet || (git commit -m "bot: Auto-update {category} API endpoint" && git push)
+          if [ -n "$latest_{cat}" ] && [ -f "$latest_{cat}" ]; then
+             echo "Updating {tgt} with $latest_{cat}"
+             cp "$latest_{cat}" "{tgt}"
+             git add "{tgt}"
+          fi
+"""
+        
+        yml_content += f"""
+          git diff --quiet && git diff --staged --quiet || (git commit -m "bot: Auto-update {combo_name} API endpoints" && git push)
 """
         with open(yml_path, "w", encoding="utf-8") as f:
             f.write(yml_content)
@@ -236,7 +253,7 @@ jobs:
             return True
             
         # Commit
-        commit_msg = f"Auto-update API endpoint: {target_filename} [{int(time.time())}]"
+        commit_msg = f"Auto-update API endpoints: {combo_name} [{int(time.time())}]"
         stdout, success = run_git_command(["commit", "-m", commit_msg], repo_dir)
         if not success:
             err(f"Gagal melakukan commit.\nGit Error: {stdout}")
@@ -250,13 +267,13 @@ jobs:
             ok("Push berhasil!")
             print(f"\n  {Fore.GREEN}Endpoint JSON Anda sudah siap di GitHub!{Style.RESET_ALL}")
             
-            # Buat asumsi URL raw.githubusercontent.com jika memungkinkan
             try:
-                # https://github.com/Username/Repo.git -> Username/Repo
                 path_parts = urlparse(clean_repo_url).path.strip("/").replace(".git", "")
-                raw_url = f"https://raw.githubusercontent.com/{path_parts}/refs/heads/{current_branch}/{target_filename}"
-                print(f"  {Fore.CYAN}🔗 Raw/API Link : {raw_url}{Style.RESET_ALL}")
-                print(f"  {Fore.CYAN}🔗 GitHub Link : https://github.com/{path_parts}/blob/{current_branch}/{target_filename}{Style.RESET_ALL}\n")
+                for fobj in files_to_copy:
+                    tgt = fobj["target"]
+                    raw_url = f"https://raw.githubusercontent.com/{path_parts}/refs/heads/{current_branch}/{tgt}"
+                    print(f"  {Fore.CYAN}🔗 {tgt} Raw/API Link : {raw_url}{Style.RESET_ALL}")
+                print(f"  {Fore.CYAN}🔗 GitHub Link : https://github.com/{path_parts}{Style.RESET_ALL}\n")
             except Exception:
                  pass # Fallback jika parsing raw link gagal
                  
