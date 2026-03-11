@@ -187,8 +187,6 @@ jobs:
       contents: write
     env:
       TZ: "Asia/Jakarta"
-      OPENROUTER_API_KEY: ${{{{ secrets.OPENROUTER_API_KEY }}}}
-      WEB_UNLOCKER_API_KEY: ${{{{ secrets.WEB_UNLOCKER_API_KEY }}}}
       
     steps:
       - name: Checkout repository

@@ -30,11 +30,11 @@ PATCHRIGHT_PATH = ''
 
 # Layanan fallback & LLM
 USE_WEB_UNLOCKER = False
-WEB_UNLOCKER_API_KEY = os.environ.get('WEB_UNLOCKER_API_KEY', 'your_key_here')
+WEB_UNLOCKER_API_KEY = 'your_key_here'
 UNBROWSE_PATH = ''
 
 USE_LLM_PARSER = True
-OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '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')
+OPENROUTER_API_KEY = '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'
 
 # Logging
 LOG_DIR = 'logs'
