@@ -2679,65 +2679,63 @@ def _run_push_combined():
     if base_dir.exists():
         for p in base_dir.rglob("*.json"):
             all_files.append(str(p))
-            
+
     if not all_files:
         warn("Belum ada file hasil scrape.")
         input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
         return
-        
-    cat_to_latest_file = {}
-    for f in all_files:
-        cat = _get_category_from_path(f)
-        if cat not in cat_to_latest_file:
-            cat_to_latest_file[cat] = f
-        else:
-            if os.path.getmtime(f) > os.path.getmtime(cat_to_latest_file[cat]):
-                cat_to_latest_file[cat] = f
-                
-    available_cats = list(cat_to_latest_file.keys())
+
+    all_files.sort(key=os.path.getmtime, reverse=True)
+    recent_files = all_files[:25]
     
-    print(f"  {Fore.CYAN}Kategori yang tersedia (otomatis mengambil contoh file JSON terbaru):{Style.RESET_ALL}")
-    for i, c in enumerate(available_cats, 1):
-        print(f"    {Fore.YELLOW}{i}{Style.RESET_ALL}. {c.upper()}")
-        
-    print(f"\n    {Fore.YELLOW} 0{Style.RESET_ALL}. Batal")
-    print(f"  {Fore.CYAN}(Pisahkan angka dengan koma, contoh: 1,2,3 atau ketik 'all'){Style.RESET_ALL}")
-    
+    print(f"  {Fore.CYAN}Pilih MULTIPLE FILE yang akan digabungkan (Max 25 Terbaru):{Style.RESET_ALL}\n")
+    for i, fpath in enumerate(recent_files, 1):
+        fname = os.path.basename(fpath)
+        cat = _get_category_from_path(fpath).upper()
+        sz = round(os.path.getsize(fpath) / 1024, 1)
+        mtime = os.path.getmtime(fpath)
+        dt = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+        print(f"    {Fore.YELLOW}{i:>2}{Style.RESET_ALL}. [{Fore.MAGENTA}{cat:^6}{Style.RESET_ALL}] {fname:45} {Fore.CYAN}{sz:>6} KB{Style.RESET_ALL}  {dt}")
+
+    print(f"\n    {Fore.YELLOW} 0{Style.RESET_ALL}. Batal / Kembali")
+    print(f"  {Fore.CYAN}(Ketik angka dipisah koma, contoh: 1,3,4 atau 'all'){Style.RESET_ALL}\n")
+
     choice = ask("Pilihan Anda")
     if choice.strip() == "0": return
     
-    selected_cats = []
+    selected_indices = []
     if choice.strip().lower() == "all":
-        selected_cats = available_cats
+        selected_indices = list(range(len(recent_files)))
     else:
         try:
-            indices = [int(x.strip()) - 1 for x in choice.split(",") if x.strip()]
-            for idx in indices:
-                if 0 <= idx < len(available_cats):
-                    if available_cats[idx] not in selected_cats:
-                        selected_cats.append(available_cats[idx])
+            raw_indices = [int(x.strip()) - 1 for x in choice.split(",") if x.strip()]
+            for idx in raw_indices:
+                if 0 <= idx < len(recent_files):
+                    if idx not in selected_indices:
+                        selected_indices.append(idx)
         except Exception:
-            err("Format tidak valid.")
+            err("Format angka tidak valid.")
             input(f"  {Fore.YELLOW}[Enter untuk kembali]{Style.RESET_ALL}")
             return
             
-    if not selected_cats:
-        err("Tidak ada kategori yang valid dipilih.")
+    if not selected_indices:
+        err("Tidak ada file yang valid dipilih.")
         return
         
-    info(f"Kategori terpilih: {Fore.GREEN}{', '.join(selected_cats).upper()}{Style.RESET_ALL}")
+    info(f"Terdapat {Fore.GREEN}{len(selected_indices)} file{Style.RESET_ALL} yang dipilih untuk digabungkan.")
     
     repo_url = _ask_repo_url()
     if not repo_url: return
     
     files_to_copy = []
-    for cat in selected_cats:
-        src = cat_to_latest_file[cat]
-        default_target = f"{cat}_data.json"
-        target_name = ask(f"Nama file untuk data '{cat.upper()}' [{default_target}]", default_target)
+    for idx in selected_indices:
+        src = recent_files[idx]
+        default_target = os.path.basename(src)
+        target_name = ask(f"Nama endpoint untuk file {Fore.MAGENTA}{default_target}{Style.RESET_ALL}? [{default_target}]", default_target)
         if not target_name: target_name = default_target
         if not target_name.endswith(".json"): target_name += ".json"
         
+        cat = _get_category_from_path(src)
         files_to_copy.append({"source": src, "target": target_name, "category": cat})
         
     repo_url = _setup_github_auth(repo_url)

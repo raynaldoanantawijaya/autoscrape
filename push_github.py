@@ -209,26 +209,33 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
 """
-        for fobj in files_to_copy:
+        import re
+        for i, fobj in enumerate(files_to_copy):
             cat = fobj["category"]
             tgt = fobj["target"]
-            # Di dalam pipeline, foldernya dinamis sesuai output default di `menu.py` atau standalone script
-            if cat == "saham":
-                search_dir = "hasil_scrape" # Standalone scrape_idx outputs directly to hasil_scrape or just root? Actually scrape_idx.py writes to `./` by default or `hasil_scrape`? Wait, menu.py --saham calls `run_scrape_saham` which calls `scrape_idx_all()` which saves to `hasil_scrape/saham_idx_...json`.
-                # Actually let's just find the newest JSON inside `hasil_scrape` regardless! 
-                # But to avoid mixing if we have multiple, it's safer to grep by category folder.
+            src_file = os.path.basename(fobj["source"])
+            # Remove trailing timestamps (e.g. galeri24_co_id_1773010101.json -> galeri24_co_id)
+            base_pattern = re.sub(r'_[0-9]+\.json$', '', src_file)
+            if base_pattern == src_file: 
+                base_pattern = src_file.replace('.json', '')
             
-            # Using find to be extremely safe since the struct might be `hasil_scrape/{cat}/...` or `hasil_scrape/*{cat}*`
             yml_content += f"""
-          latest_{cat}=$(find hasil_scrape -type f -name "*.json" | grep -i '{cat}' | xargs ls -t 2>/dev/null | head -1 || true)
-          if [ -z "$latest_{cat}" ]; then
-              # Fallback if no category folder, just grab the latest overall
-              latest_{cat}=$(ls -t hasil_scrape/*.json 2>/dev/null | head -1 || true)
+          echo "Processing {tgt}..."
+          new_file_{i}=$(ls -t hasil_scrape/{cat}/*{base_pattern}*.json 2>/dev/null | head -1 || true)
+          if [ -z "$new_file_{i}" ]; then
+              new_file_{i}=$(ls -t hasil_scrape/*/*{base_pattern}*.json 2>/dev/null | head -1 || true)
           fi
-          if [ -n "$latest_{cat}" ] && [ -f "$latest_{cat}" ]; then
-             echo "Updating {tgt} with $latest_{cat}"
-             cp "$latest_{cat}" "{tgt}"
+          if [ -z "$new_file_{i}" ]; then
+              # Ultimate fallback: category newest
+              new_file_{i}=$(ls -t hasil_scrape/{cat}/*.json 2>/dev/null | head -1 || true)
+          fi
+          
+          if [ -n "$new_file_{i}" ] && [ -f "$new_file_{i}" ]; then
+             echo "Updating {tgt} with $new_file_{i}"
+             cp "$new_file_{i}" "{tgt}"
              git add "{tgt}"
+          else
+             echo "Warning: Could not find output for pattern '{base_pattern}'"
           fi
 """
         
